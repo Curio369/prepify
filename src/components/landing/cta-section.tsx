@@ -45,7 +45,7 @@ export function CtaSection() {
             }`}>
               {/* Primary Button */}
               <a 
-                href="#upload" 
+                href="upload" 
                 className="inline-flex items-center justify-center px-8 py-4 text-sm font-medium text-black bg-white rounded-full hover:bg-zinc-200 transition-colors group"
               >
                 Upload your first DPP

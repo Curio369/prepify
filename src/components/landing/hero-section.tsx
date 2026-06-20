@@ -195,7 +195,7 @@ export function HeroSection() {
           
           <div className={`mt-10 transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
             <a 
-              href="#upload" 
+              href="upload" 
               className="inline-flex items-center justify-center px-8 py-4 text-sm font-medium text-black bg-white rounded-full hover:bg-zinc-200 transition-colors group"
             >
               Start your Arc
