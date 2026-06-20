@@ -1,31 +1,23 @@
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Navigation } from "@/components/landing/navigation"
+import { HeroSection } from "@/components/landing/hero-section"
+import { FeaturesSection } from "@/components/landing/features-section"
+import { HowItWorksSection } from "@/components/landing/how-it-works-section"
+import { MetricsSection } from "@/components/landing/metrics-section"
+import { PricingSection } from "@/components/landing/pricing-section"
+import { CtaSection } from "@/components/landing/cta-section"
+import { FooterSection } from "@/components/landing/footer-section"
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-
-  async function handleUpload() {
-    if (!file) return
-    setLoading(true)
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await fetch('/api/extract', { method: 'POST', body: formData })
-    const data = await res.json()
-    localStorage.setItem('questions', JSON.stringify(data.questions))
-    router.push('/exam')
-  }
-
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-      <h1>Prepify — Upload DPP</h1>
-      <input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files?.[0] || null)} />
-      <br /><br />
-      <button onClick={handleUpload} disabled={!file || loading}>
-        {loading ? 'Extracting questions...' : 'Start Exam'}
-      </button>
-    </div>
+    <main className="relative min-h-screen overflow-x-hidden">
+      <Navigation />
+      <HeroSection />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <MetricsSection />
+      <PricingSection />
+      <CtaSection />
+      <FooterSection />
+    </main>
   )
 }
