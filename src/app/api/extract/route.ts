@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-
+// Initialize the unified SDK specifically for Vertex AI using your ADC
+// Initialize the unified SDK specifically for Vertex AI using your ADC
+const ai = new GoogleGenAI({
+  vertexai: true,
+  project: 'green-radius-464018-v2',
+  location: 'global'
+});
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
 Extract ALL questions from this image.
 Return ONLY a valid JSON array, nothing else.
@@ -19,17 +24,58 @@ Each question must follow this exact format:
     "D": "option D text"
   },
   "correct": "A",
-  "diagramBox": [ymin, xmin, ymax, xmax]
+  "diagramBox": [ymin, xmin, ymax, xmax],
+  "fullImageMode": false
 }
 
-Rules:
+General Rules:
 - Write ALL math expressions in LaTeX format wrapped in $ for inline and $$ for block
 - Options may be labeled as A/B/C/D or (a)/(b)/(c)/(d) — always map them to A, B, C, D in your output
 - ALWAYS extract all 4 options for every question
-- If a question has a diagram or figure, return ONLY the bounding box of the actual diagram/figure itself, NOT the surrounding text. Coordinates normalized to 1000 as [ymin, xmin, ymax, xmax]
 - If no diagram exists, omit "diagramBox" entirely
+- Extract EVERY question you can see, even if watermarks or text overlaps the content. Do not skip any question.
+- If the page has a header, footer, or watermark, ignore it and focus only on numbered questions.
 - If correct answer unknown, put ""
-- Return only the JSON array, no markdown`
+- Return only the JSON array, no markdown
+- There are multiple questions on this page. Make sure to extract ALL of them, not just the first one.
+- First identify the subject of each question (Physics, Chemistry, Math, Biology) from context. If not explicitly labeled, judge from question content.
+
+Subject-specific rules:
+
+PHYSICS / MATH:
+- Any figure, graph, circuit, free-body diagram, or geometric figure must use "diagramBox", never LaTeX
+- Pure equations/expressions with no visual figure go in "text" as LaTeX
+
+CHEMISTRY:
+- ALL chemical structures — skeletal/bond-line structures, benzene/cyclic rings, AND condensed/chain structural formulas (e.g. CH3-CH2-C=CH-CH2-CH3 drawn with bond lines) — must ALWAYS use "diagramBox". Never attempt to render any chemical structure as LaTeX text, even if it looks like a simple linear chain.
+- Reaction schemes/mechanisms with arrows must use "diagramBox"
+- Only use LaTeX "text" for chemistry when there is no drawn structure at all (e.g. plain-text questions about concepts, numericals, named reactions mentioned without a drawn structure)
+
+BIOLOGY:
+- Any labeled diagram (cell, organ, anatomical figure, process diagram) must use "diagramBox"
+- Plain text questions use "text" as normal (no LaTeX needed unless numerical)
+
+Diagram box rules (applies to all subjects):
+- Return ONLY the bounding box of the actual diagram/figure itself, NOT the surrounding text. Coordinates normalized to 1000 as [ymin, xmin, ymax, xmax]
+- The diagramBox must contain ONLY the figure/diagram. Do NOT include question text or answer options inside the box. Include all labels and arrows that are part of the figure.
+- The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure. Do NOT include question text lines in the ymin coordinate.
+- The diagramBox must fully contain the entire figure including all floating labels like A, B, C at the extremes of the figure.
+
+Full-image fallback mode (use ONLY when options cannot be cleanly separated as text — e.g. options are themselves diagrams/structures, handwritten, or visually too messy to split into 4 clean text/LaTeX strings):
+- Set "fullImageMode": true
+- "diagramBox" must cover the question stem AND all 4 options together, as ONE single box, in their original top-to-bottom or grid layout exactly as printed
+- Omit "options" entirely (no A/B/C/D text needed) — leave "text" empty too
+- "correct" still uses A/B/C/D, mapped by POSITION in the image: 1st option = A, 2nd = B, 3rd = C, 4th = D
+- This is a fallback ONLY. Default behavior (separate text "options") should be used whenever options are plain text/LaTeX, even if the question stem itself is an image
+- Do not use fullImageMode just because the stem has a diagram — only use it when the OPTIONS themselves can't be cleanly extracted as text
+
+Cross-question box accuracy (CRITICAL — pages often have multiple questions, columns, or questions stacked closely):
+- Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure. The diagramBox belongs ONLY to that question. Never assign a figure to the wrong question.
+- A diagramBox must NEVER cross, touch, or include any part of a neighboring question's number label, question text, or options — even if figures are visually close together or the page has a column layout.
+- If the page has two columns, do NOT let a diagramBox span both columns or bleed from one column into the other.
+- If multiple figures appear close together, double check each box is tightly scoped to only its own question's figure before outputting.
+- Before returning, verify: for every question with a diagramBox, the box's vertical position (ymin) is directly below that SAME question's number on the page, not a different question's number.
+`
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,13 +90,22 @@ export async function POST(req: NextRequest) {
     const base64 = fileBuffer.toString('base64')
     const mimeType = file.type as any
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-    const result = await model.generateContent([
-      { inlineData: { data: base64, mimeType } },
-      prompt
-    ])
+    // The new GenAI SDK syntax using your preferred 2.5-flash model
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { data: base64, mimeType } },
+            { text: prompt }
+          ]
+        }
+      ]
+    });
 
-    const raw = result.response.text()
+    // We get our simple .text helper back!
+    const raw = response.text || "";
     const cleaned = raw.replace(/```json|```/g, '').trim()
     const questions = JSON.parse(cleaned)
     console.log('Extracted:', JSON.stringify(questions, null, 2))

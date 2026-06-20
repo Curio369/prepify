@@ -79,11 +79,12 @@ export default function Exam() {
     || ''
   return (
     <div key={opt} style={{ margin: '8px 0' }}>
-      <label>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
         <input type="radio" name="opt" value={opt}
+          style={{ marginTop: '4px' }}
           checked={answers[current] === opt}
           onChange={() => setAnswers({ ...answers, [current]: opt })} />
-        {' '}<span>{renderText(optionText)}</span>
+        <span><strong>{opt}.</strong> {optionText ? renderText(optionText) : null}</span>
       </label>
     </div>
   )
