@@ -189,7 +189,7 @@ export function IntegrationsSection() {
           isVisible ? "opacity-100" : "opacity-0"
         }`}>
           <a 
-            href="#upload" 
+            href="upload" 
             className="group inline-flex items-center gap-4 text-2xl md:text-4xl font-display text-white hover:text-[#eca8d6] transition-colors"
           >
             Upload a DPP and let the practice begin
