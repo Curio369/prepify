@@ -1,17 +1,10 @@
 import { pdfToPng } from 'pdf-to-png-converter'
 
-export async function pdfPageToImageBuffer(pdfBuffer: Buffer, pageNum = 1): Promise<Buffer> {
+export async function pdfToAllImageBuffers(pdfBuffer: Buffer): Promise<Buffer[]> {
   const pngPages = await pdfToPng(pdfBuffer, {
-    pagesToProcess: [pageNum], // Only process the exact page we need
-    viewportScale: 2.0,        // High resolution so Sharp gets a crisp image
+    viewportScale: 2.0, 
   })
 
-  const page = pngPages.find(p => p.pageNumber === pageNum)
-  
-  if (!page || !page.content) {
-    throw new Error('Failed to convert PDF page to image buffer')
-  }
-
-  // Returns the pure PNG Buffer ready for Sharp
-  return page.content 
+  // Explicitly map and cast to Buffer
+  return pngPages.map(page => Buffer.from(page.content as Uint8Array))
 }

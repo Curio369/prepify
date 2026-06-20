@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
+import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 
-// Initialize the unified SDK specifically for Vertex AI using your ADC
-// Initialize the unified SDK specifically for Vertex AI using your ADC
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
   location: 'global'
 });
+
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
 Extract ALL questions from this image.
 Return ONLY a valid JSON array, nothing else.
@@ -75,6 +75,7 @@ Cross-question box accuracy (CRITICAL — pages often have multiple questions, c
 - If the page has two columns, do NOT let a diagramBox span both columns or bleed from one column into the other.
 - If multiple figures appear close together, double check each box is tightly scoped to only its own question's figure before outputting.
 - Before returning, verify: for every question with a diagramBox, the box's vertical position (ymin) is directly below that SAME question's number on the page, not a different question's number.
+- CRITICAL: Some pages contain Answer Keys, Detailed Solutions, or Explanations instead of test questions. If the page consists primarily of solutions, answer keys, or does not contain explicit numbered test questions, you MUST return exactly []. Do NOT attempt to format solutions as questions.
 `
 
 export async function POST(req: NextRequest) {
@@ -83,48 +84,61 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
-    const bytes = await file.arrayBuffer()
-    const fileBuffer = Buffer.from(bytes)
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
     const isPDF = file.type === 'application/pdf'
 
-    const base64 = fileBuffer.toString('base64')
-    const mimeType = file.type as any
+    // 1. Get an array of PNG buffers (one for every page)
+    const imageBuffers = isPDF 
+      ? await pdfToAllImageBuffers(fileBuffer) 
+      : [fileBuffer]
 
-    // The new GenAI SDK syntax using your preferred 2.5-flash model
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [
-        {
+    let allEnrichedQuestions: any[] = []
+
+    // 2. Loop through every single page image
+    for (const imgBuf of imageBuffers) {
+      const base64 = imgBuf.toString('base64')
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: [{
           role: 'user',
           parts: [
-            { inlineData: { data: base64, mimeType } },
+            { inlineData: { data: base64, mimeType: 'image/png' } },
             { text: prompt }
           ]
-        }
-      ]
-    });
+        }]
+      });
 
-    // We get our simple .text helper back!
-    const raw = response.text || "";
-    const cleaned = raw.replace(/```json|```/g, '').trim()
-    const questions = JSON.parse(cleaned)
-    console.log('Extracted:', JSON.stringify(questions, null, 2))
+      const raw = response.text || "";
+      const cleaned = raw.replace(/```json|```/g, '').trim()
+      
+      let questions = []
+      try {
+        if (cleaned) questions = JSON.parse(cleaned)
+      } catch (e) {
+        console.warn('Skipping page: No valid JSON found')
+        continue
+      }
 
-    // Only crop diagrams for images, skip for PDFs
-    const enriched = await Promise.all(
-      questions.map(async (q: any) => {
-        if (!isPDF && q.diagramBox && Array.isArray(q.diagramBox)) {
-          const diagramBase64 = await cropDiagram(fileBuffer, q.diagramBox)
-          return { ...q, diagramBase64 }
-        }
-        return q
-      })
-    )
+      // 3. Crop diagrams for every question on THIS page
+      const enriched = await Promise.all(
+        questions.map(async (q: any) => {
+          if (q.diagramBox && Array.isArray(q.diagramBox)) {
+            const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
+            return { ...q, diagramBase64 }
+          }
+          return q
+        })
+      )
 
-    return NextResponse.json({ questions: enriched })
+      allEnrichedQuestions.push(...enriched)
+    }
+
+    // 4. Return the complete 30-question array
+    return NextResponse.json({ questions: allEnrichedQuestions })
 
   } catch (err) {
-    console.error(err)
+    console.error('Final Extraction Error:', err)
     return NextResponse.json({ error: 'Extraction failed' }, { status: 500 })
   }
 }
