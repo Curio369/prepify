@@ -4,35 +4,30 @@ import { ArrowUpRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 const footerLinks = {
-  Product: [
-    { name: "Agent capabilities", href: "#features" },
-    { name: "How it works", href: "#how-it-works" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "Integrations", href: "#integrations" },
+  Platform: [
+    { name: "Features", href: "#features" },
+    { name: "Upload DPP", href: "#upload" },
+    { name: "Pricing Plans", href: "#pricing" },
+    { name: "NTA Interface", href: "#" },
   ],
-  Developers: [
-    { name: "Documentation", href: "#developers" },
-    { name: "Agent SDK", href: "#" },
-    { name: "API Reference", href: "#developers" },
-    { name: "Status", href: "#" },
-  ],
-  Company: [
-    { name: "About", href: "#" },
-    { name: "Blog", href: "#" },
-    { name: "Careers", href: "#", badge: "Hiring" },
-    { name: "Contact", href: "#" },
+  Connect: [
+    { name: "Email Support", href: "mailto:curiozii369@gmail.com" },
+    { name: "GitHub", href: "https://github.com/Curio369" },
+    { name: "LinkedIn", href: "https://www.linkedin.com/in/kartikey-gupta-93053427b/" },
+    { name: "Twitter", href: "https://twitter.com/CurioRockerz" },
   ],
   Legal: [
-    { name: "Privacy", href: "#" },
-    { name: "Terms", href: "#" },
-    { name: "Security", href: "#security" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Refund Policy", href: "/refund" },
   ],
 };
 
 const socialLinks = [
-  { name: "Twitter", href: "#" },
-  { name: "GitHub", href: "#" },
-  { name: "LinkedIn", href: "#" },
+  { name: "GitHub", href: "https://github.com/Curio369" },
+  { name: "LinkedIn", href: "https://www.linkedin.com/in/kartikey-gupta-93053427b/" },
+  { name: "YouTube", href: "https://youtube.com/@CurioRockerz" },
+  { name: "Email", href: "mailto:curiozii369@gmail.com" },
 ];
 
 function AnimatedWaveCanvas() {
@@ -113,14 +108,14 @@ export function FooterSection() {
         <div className="py-16 lg:py-20">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-12 lg:gap-8">
             {/* Brand Column */}
-            <div className="col-span-2">
+            <div className="col-span-2 md:col-span-3">
               <a href="#" className="inline-flex items-center gap-2 mb-6">
-                <span className="text-2xl font-display text-white">COMPUTE</span>
+                <span className="text-2xl font-display text-white">PREPIFY</span>
                 <span className="text-xs text-white/40 font-mono">TM</span>
               </a>
 
               <p className="text-white/50 leading-relaxed mb-8 max-w-xs text-sm">
-                Autonomous AI agents for distributed computing. Delegate complex tasks to intelligent workers.
+                Turn any physical DPP, module, or test paper into a live, interactive NTA-style exam environment instantly.
               </p>
 
               {/* Social Links */}
@@ -129,6 +124,8 @@ export function FooterSection() {
                   <a
                     key={link.name}
                     href={link.href}
+                    target={link.href.startsWith("http") ? "_blank" : undefined}
+                    rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     className="text-sm text-white/40 hover:text-white transition-colors flex items-center gap-1 group"
                   >
                     {link.name}
@@ -150,11 +147,6 @@ export function FooterSection() {
                         className="text-sm text-white/40 hover:text-white transition-colors inline-flex items-center gap-2"
                       >
                         {link.name}
-                        {"badge" in link && link.badge && (
-                          <span className="text-xs px-2 py-0.5 bg-white text-black rounded-full">
-                            {link.badge}
-                          </span>
-                        )}
                       </a>
                     </li>
                   ))}
@@ -167,13 +159,13 @@ export function FooterSection() {
         {/* Bottom Bar */}
         <div className="py-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-white/30">
-            &copy; 2025 COMPUTE. All rights reserved.
+            &copy; {new Date().getFullYear()} PREPIFY. All rights reserved.
           </p>
 
           <div className="flex items-center gap-4 text-sm text-white/30">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#eca8d6]" />
-              All agents operational
+              <span className="w-2 h-2 rounded-full bg-[#eca8d6] animate-pulse" />
+              All systems operational
             </span>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const steps = [
   {
     number: "01",
-    title: "Upload.",
+    title: "Upload",
     subtitle: "your DPP",
     description: "Take a photo or upload PDF of any coaching test. Works with PW, Allen, FIITJEE, Aakash, any coaching",
     code: `const researcher = new Agent({

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 
-const words = [" NTA Interface", " mock test", " JEE Exam", " NEET Exam"];
+const words = ["NTA Interface", "Mock Test", "JEE Exam", "NEET Exam"];
 
 function BlurWord({ word, trigger }: { word: string; trigger: number }) {
   const letters = word.split("");
@@ -90,6 +90,7 @@ function BlurWord({ word, trigger }: { word: string; trigger: number }) {
             key={i}
             style={{
               display: "inline-block",
+              whiteSpace: "pre",
               opacity: letterStates[i]?.opacity ?? 0,
               filter: `blur(${letterStates[i]?.blur ?? 20}px)`,
               color: showGradient ? `rgb(${r},${g},${b})` : "white",
@@ -186,15 +187,24 @@ export function HeroSection() {
             }`}
           >
             <span className="block">Turn any DPP into</span>
-            <span className="block">
-              <span className="block">
-                  a real
-                  <span className="relative inline-block">
-                    <BlurWord word={words[wordIndex]} trigger={wordIndex} />
-                  </span>
-              </span>
+            <span className="block">a real</span>
+            <span className="block relative whitespace-nowrap">
+              <BlurWord word={words[wordIndex]} trigger={wordIndex} />
             </span>
           </h1>
+          
+          <div className={`mt-10 transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+            <a 
+              href="#upload" 
+              className="inline-flex items-center justify-center px-8 py-4 text-sm font-medium text-black bg-white rounded-full hover:bg-zinc-200 transition-colors group"
+            >
+              Start your Arc
+              <svg className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+              </svg>
+            </a>
+          </div>
         </div>
         </div>
       </div>

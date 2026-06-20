@@ -4,25 +4,25 @@ import { useEffect, useState, useRef } from "react";
 
 const metrics = [
   { 
-    value: 12847392, 
-    suffix: "", 
+    value: 100, 
+    suffix: "%", 
     prefix: "",
-    label: "Tasks completed today",
-    sublabel: "by 23,847 active agents",
+    label: "NTA Interface Replica",
+    sublabel: "Question palette, clear responses, and mark for review",
   },
   { 
-    value: 99, 
-    suffix: ".99%", 
+    value: 180, 
+    suffix: " mins", 
     prefix: "",
-    label: "Availability",
-    sublabel: "across all regions",
+    label: "Live Exam Timer",
+    sublabel: "Build pressure tolerance with strict countdowns",
   },
   { 
-    value: 340, 
-    suffix: "ms", 
-    prefix: "<",
-    label: "Average execution",
-    sublabel: "p99 latency",
+    value: 100, 
+    suffix: "%", 
+    prefix: "",
+    label: "Instant AI Solutions",
+    sublabel: "Get step-by-step breakdowns the second you submit",
   },
 ];
 
@@ -59,8 +59,8 @@ function AnimatedNumber({ end, suffix = "", prefix = "" }: { end: number; suffix
   const displayValue = count.toLocaleString();
 
   return (
-    <div ref={ref} className="inline-flex items-baseline">
-      <span className="text-muted-foreground mr-1">{prefix}</span>
+    <div ref={ref} className="inline-flex items-baseline text-white">
+      <span className="text-zinc-400 mr-1">{prefix}</span>
       <span className="tabular-nums">
         {displayValue.split("").map((char, i) => (
           <span
@@ -73,7 +73,7 @@ function AnimatedNumber({ end, suffix = "", prefix = "" }: { end: number; suffix
           </span>
         ))}
       </span>
-      <span className="text-muted-foreground">{suffix}</span>
+      <span className="text-zinc-400 ml-1">{suffix}</span>
     </div>
   );
 }
@@ -239,7 +239,7 @@ export function MetricsSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-32 lg:py-40 overflow-hidden">
+    <section id="metrics" ref={sectionRef} className="relative py-32 lg:py-40 overflow-hidden bg-black text-white">
       <GridBackground />
 
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12">
@@ -251,7 +251,7 @@ export function MetricsSection() {
                 <span className="w-2 h-2 rounded-full bg-[#eca8d6] animate-pulse" />
                 LIVE
               </span>
-              <span className="text-sm font-mono text-muted-foreground">
+              <span className="text-sm font-mono text-zinc-400">
                 {time ? `${time.toLocaleTimeString("en-GB")} UTC` : ""}
               </span>
             </div>
@@ -259,9 +259,9 @@ export function MetricsSection() {
             <h2 className={`text-6xl md:text-7xl lg:text-[140px] font-display tracking-tight leading-[0.95] transition-all duration-1000 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}>
-              Real-time
+              Ditch the
               <br />
-              <span className="text-muted-foreground">agent metrics.</span>
+              <span className="text-zinc-500">Pen and Paper.</span>
             </h2>
           </div>
         </div>
@@ -281,7 +281,7 @@ export function MetricsSection() {
         {/* Metrics grid */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Large metric */}
-          <div className={`lg:col-span-1 bg-foreground/[0.02] border border-foreground/10 p-10 lg:p-14 transition-all duration-700 ${
+          <div className={`lg:col-span-1 bg-white/[0.02] border border-white/10 p-10 lg:p-14 transition-all duration-700 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
           }`}>
             <div className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight mb-4 whitespace-nowrap overflow-hidden">
@@ -290,22 +290,22 @@ export function MetricsSection() {
             <div className="mb-6">
               <DotGraph color="white" height={36} freq1={0.28} freq2={0.09} freqT={0.5} speed={0.018} baseline={0.35} amplitude={0.55} />
             </div>
-            <div className="text-lg text-foreground mb-2">{metrics[0].label}</div>
-            <div className="text-sm text-muted-foreground font-mono">{metrics[0].sublabel}</div>
+            <div className="text-lg text-white mb-2">{metrics[0].label}</div>
+            <div className="text-sm text-zinc-400 font-mono">{metrics[0].sublabel}</div>
           </div>
 
-          {/* Metrics */}
+          {/* Additional Metrics */}
           {metrics.slice(1).map((metric, index) => (
             <div
               key={metric.label}
-              className={`bg-foreground/[0.02] border border-foreground/10 p-8 flex flex-col items-start justify-between gap-6 transition-all duration-700 ${
+              className={`bg-white/[0.02] border border-white/10 p-8 flex flex-col items-start justify-between gap-6 transition-all duration-700 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
               }`}
               style={{ transitionDelay: `${(index + 1) * 100}ms` }}
             >
               <div className="w-full">
-                <div className="text-sm text-muted-foreground font-mono mb-2">{metric.sublabel}</div>
-                <div className="text-base text-foreground mb-3">{metric.label}</div>
+                <div className="text-sm text-zinc-400 font-mono mb-2">{metric.sublabel}</div>
+                <div className="text-base text-white mb-3">{metric.label}</div>
                 <DotGraph
                   color={index === 0 ? "green" : "white"}
                   height={24}
@@ -325,14 +325,16 @@ export function MetricsSection() {
         </div>
 
         {/* Bottom ticker */}
-        <div className={`mt-16 pt-8 border-t border-foreground/10 flex flex-wrap items-center gap-x-12 gap-y-4 text-sm font-mono text-muted-foreground transition-all duration-1000 delay-500 ${
+        <div className={`mt-16 pt-8 border-t border-white/10 flex flex-wrap items-center gap-x-12 gap-y-4 text-sm font-mono text-zinc-400 transition-all duration-1000 delay-500 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}>
-          <span>OpenAI GPT-4 Turbo</span>
-          <span>Anthropic Claude 3</span>
-          <span>Mistral Large</span>
-          <span>Llama 3</span>
-          <span className="text-foreground">+12 more models</span>
+          <span>JEE Main</span>
+          <span>NEET UG</span>
+          <span>BITSAT</span>
+          <span>Physics</span>
+          <span>Chemistry</span>
+          <span>Mathematics</span>
+          <span className="text-white">Biology</span>
         </div>
       </div>
     </section>
