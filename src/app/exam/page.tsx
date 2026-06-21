@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -20,11 +20,10 @@ function renderText(text: string) {
 
 type QuestionStatus = 'unattempted' | 'attempted' | 'review' | 'attempted-review'
 
-export default function Exam() {
+function ExamContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  // URL Parameters for dynamic database loading
   const examType = searchParams.get('exam_type')
   const subject = searchParams.get('subject')
   const limit = searchParams.get('limit') || '10'
@@ -36,16 +35,13 @@ export default function Exam() {
   const [timeLeft, setTimeLeft] = useState(60 * 60)
   const [showPalette, setShowPalette] = useState(true)
   const [loading, setLoading] = useState(true)
-  
-  // New Bilingual State Support
+
   const [language, setLanguage] = useState<'en' | 'hi'>('en')
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  // Hybrid Data Loader: API Fetch vs LocalStorage Fallback
   useEffect(() => {
     async function loadExamData() {
       if (examType && subject) {
-        // Flow A: Loaded dynamically from our new Supabase generation endpoint
         try {
           const res = await fetch(`/api/exams/generate?exam_type=${examType}&subject=${encodeURIComponent(subject)}&limit=${limit}`);
           const data = await res.json();
@@ -56,7 +52,6 @@ export default function Exam() {
           setLoading(false);
         }
       } else {
-        // Flow B: Fallback to local upload storage pipeline
         const q = localStorage.getItem('questions')
         if (q && q !== 'undefined') {
           setQuestions(JSON.parse(q))
@@ -70,14 +65,11 @@ export default function Exam() {
   const handleSubmit = useCallback(() => {
     setIsSubmitted(true)
     localStorage.setItem('answers', JSON.stringify(answers))
-    // Instead of instantly redirecting, we stay on-page to show solutions or let them review
-    // If you prefer immediate redirection, uncomment the line below:
-    // router.push('/results')
   }, [answers])
 
   useEffect(() => {
     if (timeLeft <= 0) { handleSubmit(); return }
-    if (isSubmitted) return // Stop timer on submission
+    if (isSubmitted) return
     const timer = setInterval(() => setTimeLeft(t => t - 1), 1000)
     return () => clearInterval(timer)
   }, [timeLeft, handleSubmit, isSubmitted])
@@ -89,7 +81,7 @@ export default function Exam() {
   }
 
   function selectAnswer(opt: string) {
-    if (isSubmitted) return; // Freeze selections post-submit
+    if (isSubmitted) return;
     setAnswers(prev => ({ ...prev, [current]: opt }))
     setStatus(prev => ({
       ...prev,
@@ -140,20 +132,17 @@ export default function Exam() {
   const attempted = Object.keys(answers).length
   const notAttempted = questions.length - attempted
 
-  // Dynamic Bilingual Content Router
   const questionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en || q.text)
   const activeOptions = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en || q.options)
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Top bar */}
       <div className="border-b border-white/10 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <span className="font-display text-lg tracking-wider text-emerald-400">PREPIFY</span>
           <span className="text-white/30 text-xs font-mono">{examType ? `${examType.toUpperCase()} MODE` : 'SANDBOX MODE'}</span>
         </div>
-        
-        {/* Real-time Dynamic Language Toggle Switching */}
+
         {(q.text_hi || q.options_hi) && (
           <button
             onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
@@ -183,10 +172,8 @@ export default function Exam() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Question area */}
         <div className="flex-1 overflow-y-auto p-6 lg:p-10">
           <div className="max-w-3xl">
-            {/* Question metadata row */}
             <div className="flex items-center gap-3 mb-6">
               <span className="text-white/30 text-sm font-mono">Q{current + 1}</span>
               <span className="text-white/20 text-sm">of {questions.length}</span>
@@ -195,31 +182,28 @@ export default function Exam() {
               )}
             </div>
 
-            {/* Render Question Text through KaTeX layout wrappers */}
             <div className="text-white text-lg leading-relaxed mb-6">
               {renderText(questionText)}
             </div>
 
-            {/* Handle Dynamic Diagram rendering paths */}
             {(q.diagram_url || q.diagramBase64) && (
               <div className="mb-6 border border-white/10 rounded-xl overflow-hidden inline-block bg-white p-2">
-                <img 
-                  src={q.diagram_url || q.diagramBase64} 
-                  alt="Exam Diagram Vector" 
-                  className="max-w-full max-h-72 object-contain" 
+                <img
+                  src={q.diagram_url || q.diagramBase64}
+                  alt="Exam Diagram Vector"
+                  className="max-w-full max-h-72 object-contain"
                 />
               </div>
             )}
 
-            {/* Render Multiple Choice Option Set */}
             <div className="space-y-3 mb-8">
               {['A', 'B', 'C', 'D'].map(opt => {
                 const optionRawText = activeOptions?.[opt] || activeOptions?.[opt.toLowerCase()] || activeOptions?.[`(${opt.toLowerCase()})`] || ''
                 const isSelected = answers[current] === opt
                 const isCorrect = q.correct_answer === opt
-                
+
                 let conditionalBorder = 'border-white/10 text-white/70 hover:border-white/30 hover:bg-white/5'
-                
+
                 if (isSubmitted) {
                   if (isCorrect) conditionalBorder = 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
                   else if (isSelected && !isCorrect) conditionalBorder = 'border-red-500 bg-red-500/10 text-red-400'
@@ -241,7 +225,6 @@ export default function Exam() {
               })}
             </div>
 
-            {/* Embedded Post-Submission AI Solutions Portal */}
             {isSubmitted && q.explanation && (
               <div className="bg-zinc-900 border border-emerald-500/20 rounded-xl p-5 mb-8">
                 <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -251,7 +234,6 @@ export default function Exam() {
               </div>
             )}
 
-            {/* Footer Navigation Toolbar */}
             <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => setCurrent(c => c - 1)}
@@ -287,8 +269,7 @@ export default function Exam() {
                 Next →
               </button>
             </div>
-            
-            {/* Real-time Browser Score Summary Board */}
+
             {isSubmitted && (
               <div className="mt-8 border border-zinc-800 bg-zinc-900/50 rounded-2xl p-6 text-center">
                 <h3 className="text-xl font-bold text-emerald-400 mb-1">Performance Report Generated</h3>
@@ -307,21 +288,16 @@ export default function Exam() {
           </div>
         </div>
 
-        {/* Question Palette Sidebar */}
         {showPalette && (
           <div className="w-64 border-l border-white/10 p-4 overflow-y-auto shrink-0 bg-zinc-950 flex flex-col justify-between">
             <div>
               <p className="text-white/30 text-xs font-mono uppercase tracking-widest mb-4">Question Palette</p>
-
-              {/* Legend Matrix Map */}
               <div className="space-y-2 mb-4 text-xs text-white/40">
                 <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-green-600" />Answered</div>
                 <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-purple-600" />Answered + Review</div>
                 <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-orange-500" />Marked for Review</div>
                 <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white/10" />Not Attempted</div>
               </div>
-
-              {/* Grid Matrix Nav Selection */}
               <div className="grid grid-cols-5 gap-1.5 mb-6">
                 {questions.map((_, i) => (
                   <button
@@ -336,8 +312,6 @@ export default function Exam() {
                 ))}
               </div>
             </div>
-
-            {/* Summary Metadata Calculations Block */}
             <div className="border-t border-white/10 pt-4 space-y-4">
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-white/50">
@@ -350,7 +324,6 @@ export default function Exam() {
                   <span>Total Base</span><span className="font-mono">{questions.length}</span>
                 </div>
               </div>
-
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitted}
@@ -363,5 +336,17 @@ export default function Exam() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Exam() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-emerald-500 text-sm font-bold font-mono animate-pulse">Initializing exam environment...</div>
+      </div>
+    }>
+      <ExamContent />
+    </Suspense>
   )
 }
