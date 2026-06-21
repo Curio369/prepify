@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -18,7 +18,8 @@ function renderText(text: string) {
   })
 }
 
-export default function CtetExamEngine() {
+// 1. Rename your original function to remove 'export default'
+function ExamContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -77,14 +78,11 @@ export default function CtetExamEngine() {
 
   const q = questions[current]
   
-  // Choose between English or fallback Hindi fields dynamically
   const activeQuestionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en)
   const activeOptionsSet = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en)
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900 shadow-2xl pb-24">
-      
-      {/* Mobile Sticky Header */}
       <div className="sticky top-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-4 flex justify-between items-center z-20">
         <div>
           <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono uppercase tracking-widest px-2 py-0.5 rounded-md border border-emerald-500/20">
@@ -92,8 +90,6 @@ export default function CtetExamEngine() {
           </span>
           <h2 className="text-xs text-slate-400 font-medium mt-1">Progress: {current + 1} / {questions.length}</h2>
         </div>
-
-        {/* Instant Language Toggle Switch */}
         {(q.text_hi || q.options_hi) && (
           <button
             onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
@@ -104,28 +100,22 @@ export default function CtetExamEngine() {
         )}
       </div>
 
-      {/* Main Container */}
       <div className="flex-1 p-4 overflow-y-auto">
-        
-        {/* Top Ad Slot (Interim Adsterra Placement) */}
         <div className="w-full h-16 bg-slate-900 border border-dashed border-slate-800 rounded-xl mb-5 flex items-center justify-center text-[10px] text-slate-600 tracking-wider uppercase">
           Advertisement Placement Space
         </div>
 
-        {/* Question Panel */}
         <div className="space-y-4">
           <div className="text-base font-medium leading-relaxed text-slate-200 bg-slate-900/40 p-4 rounded-xl border border-slate-900">
             {renderText(activeQuestionText)}
           </div>
 
-          {/* Render Cloud Image Vectors */}
           {q.diagram_url && (
             <div className="border border-slate-800 rounded-xl overflow-hidden bg-white p-2 flex justify-center">
               <img src={q.diagram_url} alt="Exam Figure" className="max-w-full max-h-56 object-contain" />
             </div>
           )}
 
-          {/* Touch-Friendly Option Targets */}
           <div className="space-y-2.5 pt-2">
             {['A', 'B', 'C', 'D'].map(opt => {
               const optionTextString = activeOptionsSet?.[opt] || activeOptionsSet?.[opt.toLowerCase()] || ''
@@ -158,7 +148,6 @@ export default function CtetExamEngine() {
           </div>
         </div>
 
-        {/* Seamless Solution Display */}
         {isSubmitted && q.explanation && (
           <div className="mt-5 bg-slate-900 border border-slate-800 rounded-xl p-4">
             <h4 className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -168,7 +157,6 @@ export default function CtetExamEngine() {
           </div>
         )}
 
-        {/* Scoreboard View */}
         {isSubmitted && (
           <div className="mt-6 border border-slate-800 bg-slate-900/60 rounded-xl p-5 text-center">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Evaluation Complete</h3>
@@ -185,7 +173,6 @@ export default function CtetExamEngine() {
         )}
       </div>
 
-      {/* Mobile Fixed Bottom Navigation bar */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-4 flex justify-between items-center z-20">
         <button
           onClick={() => setCurrent(c => Math.max(0, c - 1))}
@@ -198,11 +185,8 @@ export default function CtetExamEngine() {
         {!isSubmitted ? (
           <button
             onClick={() => {
-              if (current === questions.length - 1) {
-                setIsSubmitted(true)
-              } else {
-                setCurrent(c => c + 1)
-              }
+              if (current === questions.length - 1) setIsSubmitted(true)
+              else setCurrent(c => c + 1)
             }}
             className={`px-5 py-2 rounded-xl text-xs font-bold shadow-md transition ${
               current === questions.length - 1
@@ -223,5 +207,18 @@ export default function CtetExamEngine() {
         )}
       </div>
     </div>
+  )
+}
+
+// 2. Create the new default export wrapper that satisfies Vercel's build requirements
+export default function CtetExamEngine() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-emerald-400 text-sm font-bold font-mono animate-pulse">Loading Test Environment...</div>
+      </div>
+    }>
+      <ExamContent />
+    </Suspense>
   )
 }
