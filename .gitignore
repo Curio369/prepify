@@ -136,3 +136,8 @@ CLAUDE.md
 *.tar.gz
 .turbo
 green-radius-464018-v2-6c4ca60b4179.json
+# local-only, not needed in deployment
+pyq-imports/
+scripts/
+*.sql
+trash/

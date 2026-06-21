@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -18,337 +18,244 @@ function renderText(text: string) {
   })
 }
 
-type QuestionStatus = 'unattempted' | 'attempted' | 'review' | 'attempted-review'
-
-// 1. Rename the main function to an internal component
-function ExamContent() {
+function CtetExamContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const examType = searchParams.get('exam_type')
-  const subject = searchParams.get('subject')
+  const subject = searchParams.get('subject') || 'General'
   const limit = searchParams.get('limit') || '10'
 
   const [questions, setQuestions] = useState<any[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [status, setStatus] = useState<Record<number, QuestionStatus>>({})
   const [current, setCurrent] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(60 * 60)
-  const [showPalette, setShowPalette] = useState(true)
   const [loading, setLoading] = useState(true)
-  
   const [language, setLanguage] = useState<'en' | 'hi'>('en')
   const [isSubmitted, setIsSubmitted] = useState(false)
 
   useEffect(() => {
-    async function loadExamData() {
-      if (examType && subject) {
-        try {
-          const res = await fetch(`/api/exams/generate?exam_type=${examType}&subject=${encodeURIComponent(subject)}&limit=${limit}`);
-          const data = await res.json();
-          setQuestions(data.questions || []);
-        } catch (error) {
-          console.error('Error fetching questions from database:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        const q = localStorage.getItem('questions')
-        if (q && q !== 'undefined') {
-          setQuestions(JSON.parse(q))
-        }
+    async function fetchCtetQuestions() {
+      try {
+        const res = await fetch(`/api/exams/generate?exam_type=CTET&subject=${encodeURIComponent(subject)}&limit=${limit}`)
+        const data = await res.json()
+        setQuestions(data.questions || [])
+      } catch (error) {
+        console.error('Error loading CTET database payload:', error)
+      } finally {
         setLoading(false)
       }
     }
-    loadExamData()
-  }, [examType, subject, limit])
+    fetchCtetQuestions()
+  }, [subject, limit])
 
-  const handleSubmit = useCallback(() => {
-    setIsSubmitted(true)
-    localStorage.setItem('answers', JSON.stringify(answers))
-  }, [answers])
-
-  useEffect(() => {
-    if (timeLeft <= 0) { handleSubmit(); return }
+  const handleSelectOption = (opt: string) => {
     if (isSubmitted) return
-    const timer = setInterval(() => setTimeLeft(t => t - 1), 1000)
-    return () => clearInterval(timer)
-  }, [timeLeft, handleSubmit, isSubmitted])
-
-  function formatTime(s: number) {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  }
-
-  function selectAnswer(opt: string) {
-    if (isSubmitted) return;
     setAnswers(prev => ({ ...prev, [current]: opt }))
-    setStatus(prev => ({
-      ...prev,
-      [current]: prev[current] === 'review' ? 'attempted-review' : 'attempted'
-    }))
   }
 
-  function toggleReview() {
-    if (isSubmitted) return;
-    setStatus(prev => {
-      const s = prev[current]
-      if (s === 'attempted') return { ...prev, [current]: 'attempted-review' }
-      if (s === 'attempted-review') return { ...prev, [current]: 'attempted' }
-      if (s === 'review') return { ...prev, [current]: 'unattempted' }
-      return { ...prev, [current]: 'review' }
-    })
-  }
-
-  function getStatusColor(i: number) {
-    const s = status[i] || 'unattempted'
-    if (s === 'attempted') return 'bg-green-600 text-white'
-    if (s === 'attempted-review') return 'bg-purple-600 text-white'
-    if (s === 'review') return 'bg-orange-500 text-white'
-    return 'bg-white/10 text-white/50'
-  }
-
-  function calculateScore() {
-    let score = 0;
+  const calculateTotalScore = () => {
+    let correctCount = 0
     questions.forEach((q, idx) => {
-      if (answers[idx] === q.correct_answer) score += 1;
-    });
-    return score;
+      if (answers[idx] === q.correct_answer) correctCount++
+    })
+    return correctCount
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-emerald-500 text-sm font-bold font-mono animate-pulse">Initializing exam environment...</div>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="text-emerald-400 text-sm font-bold font-mono animate-pulse">Assembling CTET Questions...</div>
     </div>
   )
 
   if (!questions.length) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-white/50 text-sm">No exam content loaded. Return to dashboard.</div>
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 p-4 text-center">
+      <p className="text-sm text-slate-500 mb-4">No content loaded for this subject pool yet.</p>
+      <button onClick={() => router.push('/ctet')} className="text-emerald-400 text-sm font-semibold underline">
+        Return to Selection Panel
+      </button>
     </div>
   )
 
   const q = questions[current]
-  const attempted = Object.keys(answers).length
-  const notAttempted = questions.length - attempted
 
-  const questionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en || q.text)
-  const activeOptions = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en || q.options)
+  const activeQuestionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en || q.text)
+  const activeOptionsSet = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en || q.options)
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="border-b border-white/10 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <span className="font-display text-lg tracking-wider text-emerald-400">PREPIFY</span>
-          <span className="text-white/30 text-xs font-mono">{examType ? `${examType.toUpperCase()} MODE` : 'SANDBOX MODE'}</span>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900 shadow-2xl pb-24">
+
+      {/* Header: subject tag + segmented progress bar */}
+      <div className="sticky top-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex justify-between items-center z-20">
+        <div className="flex-1 min-w-0 pr-3">
+          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono uppercase tracking-widest px-2 py-0.5 rounded-md border border-emerald-500/20">
+            {subject}
+          </span>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="flex gap-1 flex-1 max-w-[140px]">
+              {questions.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1 rounded-full flex-1 transition-colors ${
+                    i === current ? 'bg-white' : i < current ? 'bg-emerald-500/50' : 'bg-slate-800'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-[11px] text-slate-500 font-mono shrink-0">{current + 1} / {questions.length}</span>
+          </div>
         </div>
-        
+
         {(q.text_hi || q.options_hi) && (
           <button
             onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
-            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-slate-300 font-medium px-3 py-1 rounded-full transition-all"
+            className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-700 transition shrink-0"
           >
-            Translate: {language === 'en' ? 'हिंदी' : 'English'}
+            {language === 'en' ? 'हिंदी' : 'English'}
           </button>
         )}
-
-        <div className={`font-mono text-xl font-bold ${timeLeft < 300 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-          ⏱ {formatTime(timeLeft)}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowPalette(p => !p)}
-            className="text-white/40 hover:text-white text-xs transition-colors"
-          >
-            {showPalette ? 'Hide' : 'Show'} Palette
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="bg-white text-black px-4 py-1.5 rounded-full text-sm font-medium hover:bg-zinc-200 transition-colors"
-          >
-            Submit
-          </button>
-        </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-white/30 text-sm font-mono">Q{current + 1}</span>
-              <span className="text-white/20 text-sm">of {questions.length}</span>
-              {(status[current] === 'review' || status[current] === 'attempted-review') && (
-                <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full">Marked for review</span>
-              )}
+      <div className="flex-1 px-4 pt-5 pb-2 overflow-y-auto">
+        <div className="w-full h-16 bg-slate-900 border border-dashed border-slate-800 rounded-xl mb-5 flex items-center justify-center text-[10px] text-slate-600 tracking-wider uppercase">
+          Advertisement
+        </div>
+
+        <div className="space-y-4">
+          <div className="text-base font-medium leading-relaxed text-slate-200">
+            {renderText(activeQuestionText)}
+          </div>
+
+          {q.diagram_url && (
+            <div className="border border-slate-800 rounded-xl overflow-hidden bg-white p-2 flex justify-center">
+              <img src={q.diagram_url} alt="Exam Figure" className="max-w-full max-h-56 object-contain" />
             </div>
+          )}
 
-            <div className="text-white text-lg leading-relaxed mb-6">
-              {renderText(questionText)}
-            </div>
+          <div className="space-y-2.5 pt-1">
+            {['A', 'B', 'C', 'D'].map(opt => {
+              const optionTextString = activeOptionsSet?.[opt] || activeOptionsSet?.[opt.toLowerCase()] || ''
+              const isSelected = answers[current] === opt
+              const isCorrect = q.correct_answer === opt
 
-            {(q.diagram_url || q.diagramBase64) && (
-              <div className="mb-6 border border-white/10 rounded-xl overflow-hidden inline-block bg-white p-2">
-                <img 
-                  src={q.diagram_url || q.diagramBase64} 
-                  alt="Exam Diagram Vector" 
-                  className="max-w-full max-h-72 object-contain" 
-                />
-              </div>
-            )}
+              let containerStyles = 'border-slate-800 bg-slate-900 active:bg-slate-800'
+              let textStyles = 'text-slate-300'
+              let badgeStyles = 'border-slate-700 text-slate-500'
+              let badgeContent: React.ReactNode = opt
 
-            <div className="space-y-3 mb-8">
-              {['A', 'B', 'C', 'D'].map(opt => {
-                const optionRawText = activeOptions?.[opt] || activeOptions?.[opt.toLowerCase()] || activeOptions?.[`(${opt.toLowerCase()})`] || ''
-                const isSelected = answers[current] === opt
-                const isCorrect = q.correct_answer === opt
-                
-                let conditionalBorder = 'border-white/10 text-white/70 hover:border-white/30 hover:bg-white/5'
-                
-                if (isSubmitted) {
-                  if (isCorrect) conditionalBorder = 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                  else if (isSelected && !isCorrect) conditionalBorder = 'border-red-500 bg-red-500/10 text-red-400'
-                } else if (isSelected) {
-                  conditionalBorder = 'border-white bg-white/10 text-white'
+              if (isSubmitted) {
+                if (isCorrect) {
+                  containerStyles = 'border-emerald-500/40 bg-emerald-500/10'
+                  textStyles = 'text-emerald-400 font-medium'
+                  badgeStyles = 'bg-emerald-500 border-emerald-500 text-white'
+                  badgeContent = <i className="ti ti-check text-[13px]" aria-hidden="true" />
+                } else if (isSelected && !isCorrect) {
+                  containerStyles = 'border-red-500/40 bg-red-500/10'
+                  textStyles = 'text-red-400'
+                  badgeStyles = 'bg-red-500 border-red-500 text-white'
+                  badgeContent = <i className="ti ti-x text-[13px]" aria-hidden="true" />
+                } else {
+                  containerStyles = 'border-slate-800 bg-slate-900/50'
+                  textStyles = 'text-slate-500'
                 }
+              } else if (isSelected) {
+                containerStyles = 'border-emerald-500 bg-emerald-500/5'
+                textStyles = 'text-emerald-400 font-medium'
+                badgeStyles = 'bg-emerald-500 border-emerald-500 text-white'
+              }
 
-                return (
-                  <button
-                    key={opt}
-                    disabled={isSubmitted}
-                    onClick={() => selectAnswer(opt)}
-                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-200 flex items-start gap-4 ${conditionalBorder}`}
-                  >
-                    <span className={`font-mono text-sm mt-0.5 shrink-0 ${isSelected ? 'text-white' : 'text-white/30'}`}>{opt}.</span>
-                    <span>{renderText(optionRawText)}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {isSubmitted && q.explanation && (
-              <div className="bg-zinc-900 border border-emerald-500/20 rounded-xl p-5 mb-8">
-                <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  ✨ Instant AI Explanation
-                </h4>
-                <p className="text-zinc-300 text-sm leading-relaxed">{q.explanation}</p>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <button
-                onClick={() => setCurrent(c => c - 1)}
-                disabled={current === 0}
-                className="px-5 py-2.5 rounded-full border border-white/20 text-sm text-white/70 hover:text-white hover:border-white/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                ← Prev
-              </button>
-              <button
-                onClick={toggleReview}
-                disabled={isSubmitted}
-                className="px-5 py-2.5 rounded-full border border-orange-500/40 text-orange-400 text-sm hover:bg-orange-500/10 transition-all disabled:opacity-20"
-              >
-                Mark for Review
-              </button>
-              <button
-                onClick={() => {
-                  if (!isSubmitted && answers[current]) {
-                    setAnswers(prev => { const n = { ...prev }; delete n[current]; return n })
-                    setStatus(prev => ({ ...prev, [current]: 'unattempted' }))
-                  }
-                }}
-                disabled={isSubmitted}
-                className="px-5 py-2.5 rounded-full border border-white/10 text-white/40 text-sm hover:text-white/70 transition-all disabled:opacity-20"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => setCurrent(c => c + 1)}
-                disabled={current === questions.length - 1}
-                className="px-5 py-2.5 rounded-full bg-white text-black text-sm font-medium hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all ml-auto"
-              >
-                Next →
-              </button>
-            </div>
-            
-            {isSubmitted && (
-              <div className="mt-8 border border-zinc-800 bg-zinc-900/50 rounded-2xl p-6 text-center">
-                <h3 className="text-xl font-bold text-emerald-400 mb-1">Performance Report Generated</h3>
-                <p className="text-sm text-zinc-400">Review your metrics or select an alternate configuration.</p>
-                <div className="text-3xl font-mono font-black mt-4 text-white">
-                  {calculateScore()} <span className="text-lg text-zinc-600">/ {questions.length} Correct</span>
-                </div>
+              return (
                 <button
-                  onClick={() => router.push('/ctet')}
-                  className="mt-4 text-xs font-semibold bg-zinc-800 border border-zinc-700 px-4 py-2 rounded-full hover:bg-zinc-700 transition"
+                  key={opt}
+                  disabled={isSubmitted}
+                  onClick={() => handleSelectOption(opt)}
+                  className={`w-full text-left p-3.5 rounded-xl border transition flex items-center gap-3 text-sm leading-normal ${containerStyles}`}
                 >
-                  Exit Exam Space
+                  <span className={`w-[22px] h-[22px] rounded-full border flex items-center justify-center text-[11px] font-semibold shrink-0 transition-colors ${badgeStyles}`}>
+                    {badgeContent}
+                  </span>
+                  <div className={`flex-1 ${textStyles}`}>{renderText(optionTextString)}</div>
                 </button>
-              </div>
-            )}
+              )
+            })}
           </div>
         </div>
 
-        {showPalette && (
-          <div className="w-64 border-l border-white/10 p-4 overflow-y-auto shrink-0 bg-zinc-950 flex flex-col justify-between">
-            <div>
-              <p className="text-white/30 text-xs font-mono uppercase tracking-widest mb-4">Question Palette</p>
-              <div className="space-y-2 mb-4 text-xs text-white/40">
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-green-600" />Answered</div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-purple-600" />Answered + Review</div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-orange-500" />Marked for Review</div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white/10" />Not Attempted</div>
-              </div>
-              <div className="grid grid-cols-5 gap-1.5 mb-6">
-                {questions.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrent(i)}
-                    className={`aspect-square rounded text-xs font-mono transition-all ${getStatusColor(i)} ${
-                      current === i ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
+        {isSubmitted && q.explanation && (
+          <div className="mt-4 pl-3.5 pr-3 py-3 border-l-2 border-emerald-500 bg-slate-900/60 rounded-r-xl">
+            <div className="flex items-center gap-1.5 mb-1">
+              <i className="ti ti-bulb text-[14px] text-emerald-400" aria-hidden="true" />
+              <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">Explanation</span>
             </div>
-            <div className="border-t border-white/10 pt-4 space-y-4">
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-white/50">
-                  <span>Answered</span><span className="text-green-400 font-bold font-mono">{attempted}</span>
-                </div>
-                <div className="flex justify-between text-white/50">
-                  <span>Not Answered</span><span className="text-white/40 font-mono">{notAttempted}</span>
-                </div>
-                <div className="flex justify-between text-white/50">
-                  <span>Total Base</span><span className="font-mono">{questions.length}</span>
-                </div>
-              </div>
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitted}
-                className="w-full py-2.5 bg-white text-black rounded-full text-sm font-medium hover:bg-zinc-200 transition-colors disabled:opacity-20"
-              >
-                {isSubmitted ? 'Exam Submitted' : 'Submit Complete Exam'}
-              </button>
-            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">{q.explanation}</p>
           </div>
+        )}
+
+        {isSubmitted && (
+          <div className="mt-6 border border-slate-800 bg-slate-900/60 rounded-xl p-5 text-center">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Your Results</h3>
+            <div className="text-4xl font-mono font-black text-white mt-2">
+              {calculateTotalScore()} <span className="text-sm text-slate-600">/ {questions.length} Correct</span>
+            </div>
+            <button
+              onClick={() => router.push('/ctet')}
+              className="mt-4 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold py-2.5 rounded-xl transition"
+            >
+              Back to Subjects
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-4 flex justify-between items-center z-20">
+        <button
+          onClick={() => setCurrent(c => Math.max(0, c - 1))}
+          disabled={current === 0}
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition flex items-center gap-1"
+        >
+          <i className="ti ti-chevron-left text-[14px]" aria-hidden="true" />
+          Previous
+        </button>
+
+        {!isSubmitted ? (
+          <button
+            onClick={() => {
+              if (current === questions.length - 1) {
+                setIsSubmitted(true)
+              } else {
+                setCurrent(c => c + 1)
+              }
+            }}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1 ${
+              current === questions.length - 1
+                ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                : 'bg-white text-slate-950 hover:bg-slate-200'
+              }`}
+          >
+            {current === questions.length - 1 ? 'Finish & View Score' : 'Next Question'}
+            {current !== questions.length - 1 && <i className="ti ti-chevron-right text-[14px]" aria-hidden="true" />}
+          </button>
+        ) : (
+          <button
+            onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
+            disabled={current === questions.length - 1}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition flex items-center gap-1"
+          >
+            Next Review
+            <i className="ti ti-chevron-right text-[14px]" aria-hidden="true" />
+          </button>
         )}
       </div>
     </div>
   )
 }
 
-// 2. Wrap it securely in Suspense for the Vercel builder
-export default function Exam() {
+export default function CtetExamEngine() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-emerald-500 text-sm font-bold font-mono animate-pulse">Initializing NTA Environment...</div>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-emerald-400 text-sm font-bold font-mono animate-pulse">Loading Test Environment...</div>
       </div>
     }>
-      <ExamContent />
+      <CtetExamContent />
     </Suspense>
   )
 }

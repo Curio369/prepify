@@ -4,18 +4,18 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const CTET_SUBJECTS = [
-  'Child Development',
-  'Math',
-  'EVS',
-  'Science',
-  'Hindi',
-  'English',
-  'Social Science'
+  'Child Development and Pedagogy',
+  'Mathematics',
+  'Environmental Studies',
+  'Language I English',
+  'Language I Hindi',
+  'Language II English',
+  'Language II Hindi'
 ];
 
 export default function CtetLandingPage() {
   const router = useRouter();
-  const [selectedSubject, setSelectedSubject] = useState('Child Development');
+  const [selectedSubject, setSelectedSubject] = useState('Child Development and Pedagogy');
   const [questionCount, setQuestionCount] = useState(10);
   const [loading, setLoading] = useState(false);
 
