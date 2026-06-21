@@ -6,7 +6,13 @@ import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
-  location: 'global'
+  location: 'global',
+  googleAuthOptions: {
+    credentials: {
+      client_email: process.env.GCP_CLIENT_EMAIL,
+      private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }
+  }
 });
 
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
