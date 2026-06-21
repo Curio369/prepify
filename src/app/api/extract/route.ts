@@ -17,69 +17,71 @@ const ai = new GoogleGenAI({
 });
 
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
-Extract ALL questions from this image.
+Extract ALL questions from this image and generate a step-by-step solution for each.
 Return ONLY a valid JSON array, nothing else.
 
 Each question must follow this exact format:
 {
   "id": 1,
-  "text": "full question text here in LaTeX for math using $...$ for inline and $$...$$ for block",
-  "options": {
-    "A": "option A text",
-    "B": "option B text",
-    "C": "option C text",
-    "D": "option D text"
+  "text_en": "full question text in English (use LaTeX for math using $...$ for inline and $$...$$ for block. Leave blank if purely Hindi)",
+  "text_hi": "full question text in Hindi (use LaTeX for math using $...$ for inline and $$...$$ for block. Leave blank if purely English)",
+  "options_en": {
+    "A": "English option A text",
+    "B": "English option B text",
+    "C": "English option C text",
+    "D": "English option D text"
+  },
+  "options_hi": {
+    "A": "Hindi option A text",
+    "B": "Hindi option B text",
+    "C": "Hindi option C text",
+    "D": "Hindi option D text"
   },
   "correct": "A",
+  "explanation": "Generate a clear, step-by-step solution or explanation for this question in English. Do not leave this blank.",
   "diagramBox": [ymin, xmin, ymax, xmax],
   "fullImageMode": false,
   "subject": "Child Development / Math / EVS / Science / English / Hindi / Social Science / Physics / Chemistry / Biology / General",
   "topic": "specific topic within the subject",
-  "difficulty": "easy / medium / hard",
-  "language": "english / hindi"
+  "difficulty": "easy / medium / hard"
 }
 
 General Rules:
 - Write ALL math expressions in LaTeX format wrapped in $ for inline and $$ for block
 - Options may be labeled as A/B/C/D or (a)/(b)/(c)/(d) — always map them to A, B, C, D in your output
-- ALWAYS extract all 4 options for every question
+- ALWAYS extract all 4 options for every question in both languages if available on the page.
 - If no diagram exists, omit "diagramBox" entirely
-- Extract EVERY question you can see, even if watermarks or text overlaps the content. Do not skip any question.
+- Extract EVERY question you can see. Do not skip any question.
 - If the page has a header, footer, or watermark, ignore it and focus only on numbered questions.
 - If correct answer unknown, put ""
-- Return only the JSON array, no markdown
-- There are multiple questions on this page. Make sure to extract ALL of them, not just the first one.
-- First identify the subject of each question (Physics, Chemistry, Math, Biology, Child Development etc) from context. If not explicitly labeled, judge from question content.
+- There are multiple questions on this page. Make sure to extract ALL of them.
+- First identify the subject of each question from context.
 - difficulty: judge based on complexity — easy for direct recall, medium for application, hard for multi-step reasoning
-- language: detect if question is in hindi or english
 
 Subject-specific rules:
 
 PHYSICS / MATH:
 - Any figure, graph, circuit, free-body diagram, or geometric figure must use "diagramBox", never LaTeX
-- Pure equations/expressions with no visual figure go in "text" as LaTeX
+- Pure equations/expressions with no visual figure go in text as LaTeX
 
 CHEMISTRY:
-- ALL chemical structures — skeletal/bond-line structures, benzene/cyclic rings, AND condensed/chain structural formulas (e.g. CH3-CH2-C=CH-CH2-CH3 drawn with bond lines) — must ALWAYS use "diagramBox". Never attempt to render any chemical structure as LaTeX text, even if it looks like a simple linear chain.
+- ALL chemical structures (skeletal, cyclic rings, condensed chain formulas with bond lines) must ALWAYS use "diagramBox". Never render chemical structures as LaTeX text.
 - Reaction schemes/mechanisms with arrows must use "diagramBox"
-- Only use LaTeX "text" for chemistry when there is no drawn structure at all (e.g. plain-text questions about concepts, numericals, named reactions mentioned without a drawn structure)
 
 BIOLOGY:
-- Any labeled diagram (cell, organ, anatomical figure, process diagram) must use "diagramBox"
-- Plain text questions use "text" as normal (no LaTeX needed unless numerical)
+- Any labeled diagram (cell, organ, anatomical figure) must use "diagramBox"
 
 Diagram box rules (applies to all subjects):
 - Return ONLY the bounding box of the actual diagram/figure itself, NOT the surrounding text. Coordinates normalized to 1000 as [ymin, xmin, ymax, xmax]
 - The diagramBox must contain ONLY the figure/diagram. Do NOT include question text or answer options inside the box. Include all labels and arrows that are part of the figure.
-- The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure. Do NOT include question text lines in the ymin coordinate.
-- The diagramBox must fully contain the entire figure including all floating labels like A, B, C at the extremes of the figure.
+- The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure.
+- The diagramBox must fully contain the entire figure.
 
 Full-image fallback mode (use ONLY when options cannot be cleanly separated as text):
 - Set "fullImageMode": true
 - "diagramBox" must cover the question stem AND all 4 options together, as ONE single box
-- Omit "options" entirely
+- Omit "options_en" and "options_hi" entirely
 - "correct" still uses A/B/C/D mapped by POSITION
-- This is a fallback ONLY
 
 Cross-question box accuracy (CRITICAL):
 - Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure
@@ -119,15 +121,17 @@ export async function POST(req: NextRequest) {
             { inlineData: { data: base64, mimeType: 'image/png' } },
             { text: prompt }
           ]
-        }]
+        }],
+        config: {
+          responseMimeType: "application/json", // Forces pristine JSON output
+        }
       });
 
-      const raw = response.text || ""
-      const cleaned = raw.replace(/```json|```/g, '').trim()
-
+      const raw = response.text || "[]"
+      
       let questions = []
       try {
-        if (cleaned) questions = JSON.parse(cleaned)
+        questions = JSON.parse(raw)
       } catch (e) {
         console.warn('Skipping page: No valid JSON found')
         continue
@@ -148,9 +152,43 @@ export async function POST(req: NextRequest) {
 
     // Save to Supabase if requested
     if (saveToDb && allEnrichedQuestions.length > 0) {
-      const rows = allEnrichedQuestions.map((q: any) => ({
-        text: q.text || '',
-        options: q.options || {},
+      const rows = await Promise.all(
+        allEnrichedQuestions.map(async (q: any) => {
+          let publicUrl = null;
+
+          // If a diagram was cropped, upload it to Supabase Storage
+          if (q.diagramBase64) {
+        try {
+          const buffer = Buffer.from(q.diagramBase64, 'base64');
+          const fileName = `${examType.toLowerCase()}/${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('dpp_images')
+            .upload(fileName, buffer, {
+              contentType: 'image/webp',
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error('Storage Upload Error:', uploadError);
+          } else if (uploadData) {
+            // Retrieve the public URL for the uploaded file
+            const { data: urlData } = supabase.storage
+              .from('dpp_images')
+              .getPublicUrl(fileName);
+
+            publicUrl = urlData?.publicUrl || null;
+          }
+        } catch (uploadImgErr) {
+          console.error('Failed to process storage upload:', uploadImgErr);
+        }
+      }
+
+      return {
+        text_en: q.text_en || '',
+        text_hi: q.text_hi || '',
+        options_en: q.options_en || {},
+        options_hi: q.options_hi || {},
         correct_answer: q.correct || '',
         explanation: q.explanation || null,
         exam_type: examType,
@@ -158,17 +196,18 @@ export async function POST(req: NextRequest) {
         subject: q.subject || 'General',
         topic: q.topic || null,
         difficulty: q.difficulty || 'medium',
-        language: q.language || 'english',
         source: source,
-        has_latex: (q.text || '').includes('$'),
-        has_diagram: !!q.diagramBase64,
-      }))
+        has_latex: ((q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
+        has_diagram: !!publicUrl,
+        diagram_url: publicUrl
+      };
+    })
+  );
 
-      const { error } = await supabase.from('questions').insert(rows)
-      if (error) console.error('Supabase save error:', error)
-      else console.log(`Saved ${rows.length} questions to DB`)
-    }
-
+  const { error } = await supabase.from('questions').insert(rows);
+  if (error) console.error('Supabase save error:', error);
+  else console.log(`Saved ${rows.length} bilingual questions with images to DB`);
+}
     return NextResponse.json({ 
       questions: allEnrichedQuestions,
       saved_to_db: saveToDb && allEnrichedQuestions.length > 0
