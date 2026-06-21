@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
 import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
+import { supabase } from '@/lib/supabase'
 
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
-  location: 'global',
+  location: 'us-central1',
   googleAuthOptions: {
     credentials: {
       client_email: process.env.GCP_CLIENT_EMAIL,
@@ -31,7 +32,11 @@ Each question must follow this exact format:
   },
   "correct": "A",
   "diagramBox": [ymin, xmin, ymax, xmax],
-  "fullImageMode": false
+  "fullImageMode": false,
+  "subject": "Child Development / Math / EVS / Science / English / Hindi / Social Science / Physics / Chemistry / Biology / General",
+  "topic": "specific topic within the subject",
+  "difficulty": "easy / medium / hard",
+  "language": "english / hindi"
 }
 
 General Rules:
@@ -44,7 +49,9 @@ General Rules:
 - If correct answer unknown, put ""
 - Return only the JSON array, no markdown
 - There are multiple questions on this page. Make sure to extract ALL of them, not just the first one.
-- First identify the subject of each question (Physics, Chemistry, Math, Biology) from context. If not explicitly labeled, judge from question content.
+- First identify the subject of each question (Physics, Chemistry, Math, Biology, Child Development etc) from context. If not explicitly labeled, judge from question content.
+- difficulty: judge based on complexity — easy for direct recall, medium for application, hard for multi-step reasoning
+- language: detect if question is in hindi or english
 
 Subject-specific rules:
 
@@ -67,45 +74,45 @@ Diagram box rules (applies to all subjects):
 - The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure. Do NOT include question text lines in the ymin coordinate.
 - The diagramBox must fully contain the entire figure including all floating labels like A, B, C at the extremes of the figure.
 
-Full-image fallback mode (use ONLY when options cannot be cleanly separated as text — e.g. options are themselves diagrams/structures, handwritten, or visually too messy to split into 4 clean text/LaTeX strings):
+Full-image fallback mode (use ONLY when options cannot be cleanly separated as text):
 - Set "fullImageMode": true
-- "diagramBox" must cover the question stem AND all 4 options together, as ONE single box, in their original top-to-bottom or grid layout exactly as printed
-- Omit "options" entirely (no A/B/C/D text needed) — leave "text" empty too
-- "correct" still uses A/B/C/D, mapped by POSITION in the image: 1st option = A, 2nd = B, 3rd = C, 4th = D
-- This is a fallback ONLY. Default behavior (separate text "options") should be used whenever options are plain text/LaTeX, even if the question stem itself is an image
-- Do not use fullImageMode just because the stem has a diagram — only use it when the OPTIONS themselves can't be cleanly extracted as text
+- "diagramBox" must cover the question stem AND all 4 options together, as ONE single box
+- Omit "options" entirely
+- "correct" still uses A/B/C/D mapped by POSITION
+- This is a fallback ONLY
 
-Cross-question box accuracy (CRITICAL — pages often have multiple questions, columns, or questions stacked closely):
-- Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure. The diagramBox belongs ONLY to that question. Never assign a figure to the wrong question.
-- A diagramBox must NEVER cross, touch, or include any part of a neighboring question's number label, question text, or options — even if figures are visually close together or the page has a column layout.
-- If the page has two columns, do NOT let a diagramBox span both columns or bleed from one column into the other.
-- If multiple figures appear close together, double check each box is tightly scoped to only its own question's figure before outputting.
-- Before returning, verify: for every question with a diagramBox, the box's vertical position (ymin) is directly below that SAME question's number on the page, not a different question's number.
-- CRITICAL: Some pages contain Answer Keys, Detailed Solutions, or Explanations instead of test questions. If the page consists primarily of solutions, answer keys, or does not contain explicit numbered test questions, you MUST return exactly []. Do NOT attempt to format solutions as questions.
+Cross-question box accuracy (CRITICAL):
+- Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure
+- A diagramBox must NEVER cross, touch, or include any part of a neighboring question
+- If the page has two columns, do NOT let a diagramBox span both columns
+- CRITICAL: If the page consists primarily of solutions, answer keys, or does not contain explicit numbered test questions, return exactly []
 `
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File
+    const examType = formData.get('exam_type') as string || 'General'
+    const paper = formData.get('paper') as string || null
+    const source = formData.get('source') as string || 'Prepify_Upload'
+    const saveToDb = formData.get('save_to_db') === 'true'
+
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const isPDF = file.type === 'application/pdf'
 
-    // 1. Get an array of PNG buffers (one for every page)
-    const imageBuffers = isPDF 
-      ? await pdfToAllImageBuffers(fileBuffer) 
+    const imageBuffers = isPDF
+      ? await pdfToAllImageBuffers(fileBuffer)
       : [fileBuffer]
 
-    let allEnrichedQuestions: any[] = []
+    const allEnrichedQuestions: any[] = []
 
-    // 2. Loop through every single page image
     for (const imgBuf of imageBuffers) {
       const base64 = imgBuf.toString('base64')
-      
+
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: [{
           role: 'user',
           parts: [
@@ -115,9 +122,9 @@ export async function POST(req: NextRequest) {
         }]
       });
 
-      const raw = response.text || "";
+      const raw = response.text || ""
       const cleaned = raw.replace(/```json|```/g, '').trim()
-      
+
       let questions = []
       try {
         if (cleaned) questions = JSON.parse(cleaned)
@@ -126,7 +133,6 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      // 3. Crop diagrams for every question on THIS page
       const enriched = await Promise.all(
         questions.map(async (q: any) => {
           if (q.diagramBox && Array.isArray(q.diagramBox)) {
@@ -140,8 +146,33 @@ export async function POST(req: NextRequest) {
       allEnrichedQuestions.push(...enriched)
     }
 
-    // 4. Return the complete 30-question array
-    return NextResponse.json({ questions: allEnrichedQuestions })
+    // Save to Supabase if requested
+    if (saveToDb && allEnrichedQuestions.length > 0) {
+      const rows = allEnrichedQuestions.map((q: any) => ({
+        text: q.text || '',
+        options: q.options || {},
+        correct_answer: q.correct || '',
+        explanation: q.explanation || null,
+        exam_type: examType,
+        paper: paper,
+        subject: q.subject || 'General',
+        topic: q.topic || null,
+        difficulty: q.difficulty || 'medium',
+        language: q.language || 'english',
+        source: source,
+        has_latex: (q.text || '').includes('$'),
+        has_diagram: !!q.diagramBase64,
+      }))
+
+      const { error } = await supabase.from('questions').insert(rows)
+      if (error) console.error('Supabase save error:', error)
+      else console.log(`Saved ${rows.length} questions to DB`)
+    }
+
+    return NextResponse.json({ 
+      questions: allEnrichedQuestions,
+      saved_to_db: saveToDb && allEnrichedQuestions.length > 0
+    })
 
   } catch (err) {
     console.error('Final Extraction Error:', err)

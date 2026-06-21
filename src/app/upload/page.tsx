@@ -17,6 +17,8 @@ export default function UploadPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('save_to_db', 'true')
+      formData.append('exam_type', 'CTET')
       const res = await fetch('/api/extract', { method: 'POST', body: formData })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
