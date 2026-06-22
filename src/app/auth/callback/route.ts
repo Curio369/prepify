@@ -9,14 +9,16 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/upload'
 
+  // Always redirect to the production site URL, never localhost
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin
+
   if (code) {
     const supabase = await createSupabaseServerClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${siteUrl}${next}`)
     }
   }
 
-  // Something went wrong — send them back to login
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  return NextResponse.redirect(`${siteUrl}/login?error=auth_failed`)
 }
