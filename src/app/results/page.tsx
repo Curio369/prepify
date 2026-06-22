@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
+import AdBanner from '@/components/ads/AdUnit'
 import { InlineMath, BlockMath } from 'react-katex'
 
 function renderText(text: string) {
@@ -149,9 +150,9 @@ function DBExplanation({ text, language }: { text: string; language: 'en' | 'hi'
           </button>
         )}
       </div>
-      <p className={`text-slate-400 text-sm leading-relaxed transition-opacity ${status === 'translating' ? 'opacity-40' : ''}`}>
-        {displayed}
-      </p>
+      <div className={`text-slate-400 text-sm leading-relaxed transition-opacity ${status === 'translating' ? 'opacity-40' : ''}`}>
+        {renderText(displayed)}
+      </div>
     </div>
   )
 }
@@ -206,7 +207,7 @@ function AIExplainButton({ question, userAnswer, language }: { question: Questio
         <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">✦ AI Generated</span>
         <span className="text-[9px] text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">Gemini 2.5 Flash</span>
       </div>
-      <p className="text-slate-300 text-sm leading-relaxed">{explanation}</p>
+      <div className="text-slate-300 text-sm leading-relaxed">{renderText(explanation)}</div>
     </div>
   )
 }
@@ -216,10 +217,19 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
   const isCorrect = userAns === q.correct_answer
   const isSkipped = userAns === undefined
 
-  const enText = q.text_en
+  const enText = q.text_en || (q as any).text   // fallback to q.text if text_en absent
   const hiText = q.text_hi
   const enOpts = q.options_en || q.options
   const hiOpts = q.options_hi
+  // Primary/secondary based on selected language
+  const primaryText = language === 'hi' ? (hiText || enText) : (enText || hiText)
+  const secondaryText = language === 'hi'
+    ? (hiText && enText && hiText !== enText ? enText : undefined)
+    : (hiText && hiText !== enText ? hiText : undefined)
+  const primaryOpts = language === 'hi' ? (hiOpts || enOpts) : (enOpts || hiOpts)
+  const secondaryOpts = language === 'hi'
+    ? (hiOpts ? enOpts : undefined)
+    : (hiOpts || undefined)
 
   return (
     <div className={`border rounded-2xl overflow-hidden ${isCorrect ? 'border-emerald-500/30' : isSkipped ? 'border-slate-700' : 'border-red-500/30'}`}>
@@ -230,9 +240,9 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
         </span>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] font-mono text-slate-600 mb-1">Q{i + 1} · {q.subject || 'General'}</div>
-          <div className="text-sm text-slate-300 line-clamp-2">{enText || hiText || ''}</div>
+          <div className="text-sm text-slate-300 line-clamp-2">{renderText(enText || hiText || '')}</div>
           {hiText && hiText !== enText && (
-            <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{hiText}</div>
+            <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{renderText(hiText)}</div>
           )}
         </div>
         <span className="text-slate-600 text-xs shrink-0 mt-1">{expanded ? '▲' : '▼'}</span>
@@ -241,39 +251,36 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
       {expanded && (
         <div className="px-4 pb-5 pt-1 bg-slate-900/40 border-t border-white/[0.04] space-y-5">
 
-          {/* Bilingual question text */}
-          {enText && (
-            <div>
-              <div className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mb-1">English</div>
-              <div className="text-sm text-slate-200 leading-relaxed">{renderText(enText)}</div>
-            </div>
-          )}
-          {hiText && (
-            <div>
-              <div className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mb-1">हिन्दी</div>
-              <div className="text-sm text-slate-300 leading-relaxed">{renderText(hiText)}</div>
+          {/* Full question — prominent so user doesn't need to go back */}
+          {primaryText && (
+            <div className="bg-slate-800/50 rounded-xl px-4 py-3.5">
+              <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">Question {i + 1}</div>
+              <div className="text-sm md:text-base text-slate-100 leading-relaxed font-medium">{renderText(primaryText)}</div>
+              {secondaryText && (
+                <div className="text-xs text-slate-500 leading-relaxed mt-2 pt-2 border-t border-slate-700/50">{renderText(secondaryText)}</div>
+              )}
             </div>
           )}
 
-          {/* Bilingual options */}
+          {/* Options */}
           <div className="space-y-2">
-            {Object.keys(enOpts || hiOpts || {}).map(key => {
+            {Object.keys(primaryOpts || secondaryOpts || {}).map(key => {
               const isOpt = key === q.correct_answer
               const isUser = key === userAns
-              const enVal = enOpts?.[key]
-              const hiVal = hiOpts?.[key]
+              const primaryVal = primaryOpts?.[key]
+              const secondaryVal = secondaryOpts?.[key]
               return (
                 <div key={key} className={`flex items-start gap-3 px-3 py-2.5 rounded-xl border ${isOpt ? 'border-emerald-500/40 bg-emerald-500/10' : isUser && !isOpt ? 'border-red-500/40 bg-red-500/10' : 'border-slate-800'}`}>
                   <span className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 ${isOpt ? 'border-emerald-500 bg-emerald-500 text-white' : isUser ? 'border-red-500 bg-red-500 text-white' : 'border-slate-700 text-slate-500'}`}>
                     {isOpt ? '✓' : isUser ? '✗' : key}
                   </span>
                   <div className="flex-1 min-w-0 space-y-0.5">
-                    {enVal && <div className={`text-sm leading-snug ${isOpt ? 'text-emerald-300' : isUser && !isOpt ? 'text-red-400' : 'text-slate-400'}`}>{renderText(enVal)}</div>}
-                    {hiVal && hiVal !== enVal && <div className={`text-xs leading-snug ${isOpt ? 'text-emerald-500/80' : isUser && !isOpt ? 'text-red-500/70' : 'text-slate-600'}`}>{renderText(hiVal)}</div>}
+                    {primaryVal && <div className={`text-sm leading-snug ${isOpt ? 'text-emerald-300' : isUser && !isOpt ? 'text-red-400' : 'text-slate-400'}`}>{renderText(primaryVal)}</div>}
+                    {secondaryVal && secondaryVal !== primaryVal && <div className={`text-xs leading-snug ${isOpt ? 'text-emerald-500/80' : isUser && !isOpt ? 'text-red-500/70' : 'text-slate-600'}`}>{renderText(secondaryVal)}</div>}
                   </div>
                   <div className="shrink-0 space-y-0.5 text-right">
-                    {isOpt && <div className="text-[10px] text-emerald-500 font-bold">Correct</div>}
-                    {isUser && !isOpt && <div className="text-[10px] text-red-400 font-bold">Your answer</div>}
+                    {isOpt && <div className="text-[10px] text-emerald-500 font-bold">{language === 'hi' ? 'सही' : 'Correct'}</div>}
+                    {isUser && !isOpt && <div className="text-[10px] text-red-400 font-bold">{language === 'hi' ? 'आपका जवाब' : 'Your answer'}</div>}
                   </div>
                 </div>
               )
@@ -296,6 +303,7 @@ export default function ResultsPage() {
   const router = useRouter()
   const [result, setResult] = useState<Result | null>(null)
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct' | 'skipped'>('all')
+  const [language, setLanguage] = useState<'en' | 'hi'>('en')
   const cheerRef = useRef<string>('')
 
   useEffect(() => {
@@ -305,6 +313,7 @@ export default function ResultsPage() {
       const parsed: Result = JSON.parse(raw)
       setResult(parsed)
       const lang = parsed.language || 'en'
+      setLanguage(lang)
       const pool = lang === 'hi' ? CHEER_HI : CHEER_EN
       cheerRef.current = pool[Math.floor(Math.random() * pool.length)]
     } catch { /* malformed */ }
@@ -317,9 +326,8 @@ export default function ResultsPage() {
     </div>
   )
 
-  const { questions, answers, examType, language: savedLang } = result
-  // Infer Hindi if not saved (e.g. result from before language tracking was added)
-  const language: 'en' | 'hi' = savedLang ?? (questions.some(q => q.text_hi) ? 'hi' : 'en')
+  const { questions, answers, examType } = result
+  const hasHindi = questions.some(q => q.text_hi || q.options_hi)
   const correct = questions.filter((q, i) => answers[i] === q.correct_answer).length
   const wrong = questions.filter((q, i) => answers[i] !== undefined && answers[i] !== q.correct_answer).length
   const skipped = questions.filter((_, i) => answers[i] === undefined).length
@@ -350,10 +358,18 @@ export default function ResultsPage() {
       <header className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-300 text-sm transition">← Back</button>
         <div className="flex items-center gap-2 ml-1">
-          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={22} height={22} style={{ width: 22, height: 22, flexShrink: 0 }} />
+          <Image src="/Logos/logo-icon_dark-Photoroom.png" alt="Prepify" width={80} height={22} style={{ height: 22, width: 'auto', flexShrink: 0 }} />
           <span className="text-slate-100 font-bold text-sm tracking-tight">Prepify</span>
         </div>
-        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">· {examType} Results</span>
+        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest hidden sm:inline">· {examType} Results</span>
+        {hasHindi && (
+          <button
+            onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
+            className="ml-auto text-white/50 hover:text-white/85 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-white/10 hover:border-white/22 transition"
+          >
+            {language === 'en' ? 'हिंदी' : 'English'}
+          </button>
+        )}
       </header>
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-8">
@@ -411,6 +427,8 @@ export default function ResultsPage() {
             </div>
           )}
         </div>
+
+        <AdBanner />
 
         {weakSubjects.length > 0 && (
           <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-5">

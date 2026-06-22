@@ -47,7 +47,7 @@ export function Navigation() {
         >
           {/* Logo */}
           <a href="#" className="flex items-center gap-2.5 group">
-            <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={36} height={36} style={{ width: 36, height: 36, flexShrink: 0 }} />
+            <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={80} height={36} style={{ height: 36, width: 'auto', flexShrink: 0 }} />
             <span className={`font-bold tracking-tight transition-all duration-500 ${isScrolled ? "text-lg text-foreground" : "text-xl text-white"}`}>Prepify</span>
           </a>
 

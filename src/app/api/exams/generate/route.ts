@@ -36,18 +36,45 @@ export async function GET(req: NextRequest) {
     if (year) query = query.eq('year', year)
 
     if (sortBySubject) {
-      // Group by subject alphabetically, then by upload order within each subject
-      query = query.order('subject', { ascending: true }).order('created_at', { ascending: true })
+      // Fetch a large pool so we have enough to shuffle within each subject
+      query = query.order('subject', { ascending: true })
     } else if (ordered) {
       // PYQ mode: strict upload order preserves original paper sequence
       query = query.order('created_at', { ascending: true })
     }
 
-    const { data, error } = await query.limit(limit);
+    const fetchLimit = sortBySubject ? limit * 4 : limit;
+    const { data, error } = await query.limit(fetchLimit);
     if (error) throw error;
     if (!data || data.length === 0) return NextResponse.json({ questions: [] });
 
-    const selected = (ordered || sortBySubject) ? data : shuffle(data).slice(0, limit);
+    let selected: typeof data;
+
+    if (sortBySubject) {
+      // Group by subject, shuffle each group independently (mix years within each section)
+      const groups: Record<string, typeof data> = {}
+      for (const q of data) {
+        const key = q.subject || 'General'
+        if (!groups[key]) groups[key] = []
+        groups[key].push(q)
+      }
+      const subjectKeys = Object.keys(groups).sort()
+      const PER_SECTION = 30  // every UPTET/CTET section is 30Q except the Paper II optional (60Q)
+      const result: typeof data = []
+      for (let i = 0; i < subjectKeys.length; i++) {
+        const shuffled = shuffle(groups[subjectKeys[i]])
+        // Last subject gets whatever is left (handles Paper II Social Studies = 60Q)
+        const isLast = i === subjectKeys.length - 1
+        const count = isLast ? limit - PER_SECTION * (subjectKeys.length - 1) : PER_SECTION
+        result.push(...shuffled.slice(0, count))
+      }
+      selected = result
+    } else if (ordered) {
+      selected = data
+    } else {
+      selected = shuffle(data).slice(0, limit)
+    }
+
     return NextResponse.json({ questions: selected });
   } catch (err: any) {
     console.error('Generate Exam Error:', err);

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import AdBanner from '@/components/ads/AdUnit'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -15,7 +16,6 @@ function renderText(text: string) {
   })
 }
 
-// Fisher-Yates shuffle
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -25,7 +25,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-// Subject → bilingual section label (Part number shown dynamically from position)
 const PART_LABELS: Record<string, { en: string; hi: string }> = {
   'Child Development and Pedagogy': { en: 'Child Dev. & Pedagogy',  hi: 'बाल विकास एवं शिक्षाशास्त्र' },
   'Language I Hindi':               { en: 'Language I – Hindi',     hi: 'भाषा I – हिन्दी'              },
@@ -53,12 +52,7 @@ function buildSections(questions: any[]): Section[] {
     const subj = questions[i].subject || 'General'
     const start = i
     while (i < questions.length && questions[i].subject === subj) i++
-    sections.push({
-      subject: subj,
-      startIdx: start,
-      endIdx: i - 1,
-      label: PART_LABELS[subj] || { en: subj, hi: subj },
-    })
+    sections.push({ subject: subj, startIdx: start, endIdx: i - 1, label: PART_LABELS[subj] || { en: subj, hi: subj } })
   }
   return sections
 }
@@ -66,20 +60,11 @@ function buildSections(questions: any[]): Section[] {
 function seenKey(examType: string, subject: string) {
   return `seen_${examType}_${subject}`.replace(/\s+/g, '_')
 }
-
 function getSeenIds(key: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(key)
-    return new Set(raw ? JSON.parse(raw) : [])
-  } catch { return new Set() }
+  try { const raw = localStorage.getItem(key); return new Set(raw ? JSON.parse(raw) : []) } catch { return new Set() }
 }
-
 function saveSeenIds(key: string, ids: string[]) {
-  try {
-    const existing = getSeenIds(key)
-    ids.forEach(id => existing.add(id))
-    localStorage.setItem(key, JSON.stringify([...existing]))
-  } catch {}
+  try { const e = getSeenIds(key); ids.forEach(id => e.add(id)); localStorage.setItem(key, JSON.stringify([...e])) } catch {}
 }
 
 interface ExamEngineProps {
@@ -92,7 +77,7 @@ interface ExamEngineProps {
   year?: string
   ordered?: boolean
   sortBy?: string
-  mode?: 'learning' | 'exam'  // learning = instant reveal, exam = submit then analyse
+  mode?: 'learning' | 'exam'
 }
 
 export default function ExamEngine({
@@ -106,8 +91,8 @@ export default function ExamEngine({
   const [language, setLanguage] = useState<'en' | 'hi'>('en')
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timerMinutes ? timerMinutes * 60 : null)
+  const [revealedQuestions, setRevealedQuestions] = useState<Set<number>>(new Set())
 
-  // ── Fetch + seen-question filtering ──
   useEffect(() => {
     async function fetchQuestions() {
       try {
@@ -119,27 +104,18 @@ export default function ExamEngine({
         const sortParam = sortBy ? `&sort=${sortBy}` : ''
 
         if (ordered || sortBy) {
-          // Sequential / Full Mock mode: no seen-filter, return in deterministic order
-          const res = await fetch(
-            `/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${limit}${yearParam}${orderedParam}${sortParam}`
-          )
+          const res = await fetch(`/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${limit}${yearParam}${orderedParam}${sortParam}`)
           const data = await res.json()
           setQuestions(data.questions || [])
         } else {
-          // Practice mode: fetch large pool, filter seen, shuffle
           const key = seenKey(examType, subjects || subject)
           const seen = getSeenIds(key)
           const fetchLimit = parseInt(limit) * 4
-
-          const res = await fetch(
-            `/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${fetchLimit}${yearParam}`
-          )
+          const res = await fetch(`/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${fetchLimit}${yearParam}`)
           const data = await res.json()
           const pool: any[] = shuffle(data.questions || [])
-
           const unseen = pool.filter(q => !seen.has(String(q.id)))
           const fallback = pool.filter(q => seen.has(String(q.id)))
-
           if (unseen.length === 0 && pool.length > 0) {
             localStorage.removeItem(key)
             setQuestions(pool.slice(0, parseInt(limit)))
@@ -156,20 +132,12 @@ export default function ExamEngine({
     fetchQuestions()
   }, [examType, subject, subjects, limit, year, ordered])
 
-  // ── Countdown timer ──
   const handleFinish = useCallback(() => {
     setIsSubmitted(true)
     const key = seenKey(examType, subjects || subject)
     saveSeenIds(key, questions.map(q => String(q.id)))
-    // Save full result for the results/report page
     localStorage.setItem('prepify_last_result', JSON.stringify({
-      questions,
-      answers,
-      examType,
-      subject: subjects || subject,
-      timerMinutes,
-      language,
-      savedAt: Date.now(),
+      questions, answers, examType, subject: subjects || subject, timerMinutes, language, savedAt: Date.now(),
     }))
   }, [examType, subject, subjects, questions, answers, timerMinutes, language])
 
@@ -188,39 +156,29 @@ export default function ExamEngine({
   }
 
   const score = () => {
-    let c = 0
-    questions.forEach((q, i) => { if (answers[i] === q.correct_answer) c++ })
-    return c
+    let c = 0; questions.forEach((q, i) => { if (answers[i] === q.correct_answer) c++ }); return c
   }
-
-  // In learning mode: lock this question immediately after first answer (instant reveal)
-  const [revealedQuestions, setRevealedQuestions] = useState<Set<number>>(new Set())
 
   const handleSelectOption = (opt: string) => {
     if (isSubmitted) return
-    if (mode === 'learning' && revealedQuestions.has(current)) return // locked after first pick
+    if (mode === 'learning' && revealedQuestions.has(current)) return
     setAnswers(prev => ({ ...prev, [current]: opt }))
-    if (mode === 'learning') {
-      setRevealedQuestions(prev => new Set([...prev, current]))
-    }
+    if (mode === 'learning') setRevealedQuestions(prev => new Set([...prev, current]))
   }
 
-  // In learning mode, treat current question as "submitted" if revealed
   const isCurrentRevealed = mode === 'learning' && revealedQuestions.has(current)
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <div className="text-emerald-400 text-sm font-bold font-mono animate-pulse">
-        Assembling {examType} Questions...
-      </div>
+    <div className="min-h-screen bg-[#060b10] flex items-center justify-center">
+      <div className="text-white/40 text-sm font-mono animate-pulse tracking-widest uppercase">Loading…</div>
     </div>
   )
 
   if (!questions.length) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 p-4 text-center">
-      <p className="text-sm text-slate-500 mb-4">No questions found for this subject yet.</p>
-      <button onClick={() => router.push(backPath)} className="text-emerald-400 text-sm font-semibold underline">
-        Return to Subject Selection
+    <div className="min-h-screen bg-[#060b10] flex flex-col items-center justify-center text-white/40 p-4 text-center gap-4">
+      <p className="text-sm">No questions found for this subject yet.</p>
+      <button onClick={() => router.push(backPath)} className="text-white/70 text-sm underline underline-offset-4">
+        Return to selection
       </button>
     </div>
   )
@@ -232,54 +190,50 @@ export default function ExamEngine({
   const hasHindi = !!(q.text_hi || q.options_hi)
   const isLowTime = timeLeft !== null && timeLeft < 300
 
-  // Section detection (ordered PYQ or subject-sorted Full Mock)
   const sections: Section[] = (ordered || !!sortBy) ? buildSections(questions) : []
   const currentSection = sections.find(s => current >= s.startIdx && current <= s.endIdx)
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-slate-950 text-slate-100 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen w-full max-w-full bg-[#060b10] text-white flex flex-col overflow-x-hidden" style={{ fontFamily: 'var(--font-space), var(--font-geist-sans), sans-serif' }}>
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
-        <button onClick={() => router.push(backPath)} className="text-slate-500 hover:text-slate-300 text-sm transition shrink-0">
-          ← Back
+      <header className="sticky top-0 z-30 bg-[#060b10]/98 border-b border-white/6 px-4 md:px-8 py-3 flex items-center gap-3">
+
+        <button onClick={() => router.push(backPath)} className="text-white/40 hover:text-white/80 text-sm transition shrink-0 flex items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
         </button>
 
-        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono uppercase tracking-widest px-2 py-0.5 rounded-md border border-emerald-500/20 truncate max-w-[120px] md:max-w-none">
-          {subject}
-        </span>
+        <span className="text-white/25 text-sm select-none">|</span>
 
-        {/* Desktop progress bar */}
-        <div className="hidden md:flex items-center gap-3 flex-1 max-w-md mx-auto">
-          <div className="flex gap-0.5 flex-1">
+        <span className="text-white/50 text-xs font-medium truncate max-w-[100px] md:max-w-[200px]">{subject}</span>
+
+        {/* Progress bar — desktop */}
+        <div className="hidden md:flex items-center gap-3 flex-1 mx-4">
+          <div className="flex gap-px flex-1 h-1 rounded-full overflow-hidden bg-white/6">
             {questions.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrent(i)}
-                className={`h-1.5 rounded-full flex-1 transition-colors ${
-                  i === current ? 'bg-white' : answers[i] !== undefined ? 'bg-emerald-500/60' : 'bg-slate-700'
+                className={`flex-1 h-full transition-all ${
+                  i === current ? 'bg-white/80' : answers[i] !== undefined ? 'bg-white/35' : 'bg-transparent'
                 }`}
               />
             ))}
           </div>
-          <span className="text-xs text-slate-500 font-mono shrink-0">{current + 1}/{questions.length}</span>
+          <span className="text-xs text-white/35 font-mono shrink-0">{current + 1}/{questions.length}</span>
         </div>
 
         <div className="flex items-center gap-2 ml-auto shrink-0">
-          {/* Countdown timer */}
           {timeLeft !== null && !isSubmitted && (
-            <span className={`font-mono text-sm font-bold px-3 py-1 rounded-lg border transition-all ${
-              isLowTime
-                ? 'text-red-400 border-red-500/40 bg-red-500/10 animate-pulse'
-                : 'text-slate-300 border-slate-700 bg-slate-800'
-            }`}>
-              ⏱ {formatCountdown(timeLeft)}
+            <span className={`font-mono text-sm font-semibold tabular-nums ${isLowTime ? 'text-red-400 animate-pulse' : 'text-white/60'}`}>
+              {isLowTime && <span className="mr-1">⏱</span>}{formatCountdown(timeLeft)}
             </span>
           )}
           {hasHindi && (
             <button
               onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
-              className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-700 transition"
+              className="text-white/45 hover:text-white/80 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/18 transition"
             >
               {language === 'en' ? 'हिंदी' : 'English'}
             </button>
@@ -287,57 +241,61 @@ export default function ExamEngine({
           {!isSubmitted && (
             <button
               onClick={handleFinish}
-              className="hidden md:block bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-4 py-1.5 rounded-xl transition"
+              className="hidden md:block text-xs font-semibold px-4 py-1.5 rounded-lg border border-red-500/30 text-red-400/80 hover:border-red-500/55 hover:text-red-400 transition"
             >
               Submit
+            </button>
+          )}
+          {isSubmitted && (
+            <button
+              onClick={() => router.push('/results')}
+              className="hidden md:block bg-white text-[#060b10] text-xs font-bold px-4 py-1.5 rounded-lg transition hover:bg-white/90"
+            >
+              View Report →
             </button>
           )}
         </div>
       </header>
 
-      {/* ── Mobile progress + timer bar ── */}
-      <div className="md:hidden flex items-center gap-2 px-4 pt-3 pb-0">
-        <div className="flex gap-0.5 flex-1">
+      {/* ── Mobile: progress + counter ── */}
+      <div className="md:hidden flex items-center gap-3 px-4 pt-3">
+        <div className="flex-1 h-0.5 rounded-full bg-white/6 overflow-hidden flex gap-px">
           {questions.map((_, i) => (
-            <span key={i} className={`h-1 rounded-full flex-1 transition-colors ${
-              i === current ? 'bg-white' : answers[i] !== undefined ? 'bg-emerald-500/50' : 'bg-slate-800'
+            <span key={i} className={`flex-1 h-full transition-all ${
+              i === current ? 'bg-white/75' : answers[i] !== undefined ? 'bg-white/30' : 'bg-transparent'
             }`} />
           ))}
         </div>
-        <span className="text-[11px] text-slate-500 font-mono shrink-0">{current + 1}/{questions.length}</span>
+        <span className="text-[11px] text-white/35 font-mono shrink-0">{current + 1}/{questions.length}</span>
         {timeLeft !== null && !isSubmitted && (
-          <span className={`font-mono text-[11px] font-bold ml-1 ${isLowTime ? 'text-red-400 animate-pulse' : 'text-slate-400'}`}>
+          <span className={`font-mono text-[11px] font-semibold tabular-nums ${isLowTime ? 'text-red-400 animate-pulse' : 'text-white/45'}`}>
             {formatCountdown(timeLeft)}
           </span>
         )}
       </div>
 
-      {/* ── Section / Part tab bar (ordered mode only) ── */}
+      {/* ── Section tabs (ordered mode) ── */}
       {(ordered || !!sortBy) && sections.length > 1 && (
-        <div className="border-b border-white/[0.06] bg-slate-900/60 overflow-x-auto w-full">
+        <div className="border-b border-white/6 overflow-x-auto w-full">
           <div className="flex w-max min-w-full px-4 md:px-8">
             {sections.map((sec, si) => {
               const isActive = currentSection?.subject === sec.subject
-              const answeredInSection = Array.from({ length: sec.endIdx - sec.startIdx + 1 }, (_, k) => answers[sec.startIdx + k]).filter(Boolean).length
+              const done = Array.from({ length: sec.endIdx - sec.startIdx + 1 }, (_, k) => answers[sec.startIdx + k]).filter(Boolean).length
               const total = sec.endIdx - sec.startIdx + 1
               return (
                 <button
                   key={sec.subject}
                   onClick={() => setCurrent(sec.startIdx)}
-                  className={`relative flex flex-col items-start px-4 py-2.5 text-left transition-all shrink-0 border-b-2 ${
-                    isActive
-                      ? 'border-emerald-400 text-slate-100'
-                      : 'border-transparent text-slate-500 hover:text-slate-300'
+                  className={`flex flex-col items-start px-4 py-2.5 text-left transition-all shrink-0 border-b-2 ${
+                    isActive ? 'border-white/60 text-white/90' : 'border-transparent text-white/30 hover:text-white/55'
                   }`}
                 >
-                  <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mb-0.5">
-                    Part {si + 1}
-                  </span>
-                  <span className="text-xs font-semibold whitespace-nowrap">
+                  <span className="text-[10px] font-mono text-white/25 uppercase tracking-widest mb-0.5">Part {si + 1}</span>
+                  <span className="text-xs font-medium whitespace-nowrap">
                     {language === 'hi' ? sec.label.hi : sec.label.en}
                   </span>
-                  <span className={`text-[10px] mt-0.5 font-mono ${answeredInSection === total ? 'text-emerald-400' : 'text-slate-600'}`}>
-                    {answeredInSection}/{total}
+                  <span className={`text-[10px] mt-0.5 font-mono ${done === total ? 'text-emerald-400' : 'text-white/25'}`}>
+                    {done}/{total}
                   </span>
                 </button>
               )
@@ -348,94 +306,76 @@ export default function ExamEngine({
 
       {/* ── Body ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-10 lg:px-16 pt-5 pb-28 md:pb-12">
+        <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-10 lg:px-16 pt-6 pb-28 md:pb-12">
           <div className="w-full max-w-2xl">
 
             {/* Ad slot */}
-            <div className="w-full h-14 md:h-16 bg-slate-900 border border-dashed border-slate-800 rounded-xl mb-6 flex items-center justify-center text-[10px] text-slate-600 tracking-wider uppercase">
-              Advertisement
-            </div>
+            <div className="mb-7"><AdBanner /></div>
 
-            {/* Section divider — shown at first Q of each part */}
+            {/* Section divider — shown only at first question of each section */}
             {(ordered || !!sortBy) && currentSection && current === currentSection.startIdx && (
-              <div className="mb-6 border border-white/[0.08] rounded-xl overflow-hidden">
-                <div className="bg-white/[0.04] px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-0.5">
-                      भाग / Part {sections.findIndex(s => s.subject === currentSection.subject) + 1}
-                    </div>
-                    <div className="text-sm font-bold text-slate-100">
-                      {currentSection.label.hi}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {currentSection.label.en}
-                    </div>
+              <div className="mb-7 flex items-center gap-4">
+                <div className="flex-1 h-px bg-white/8" />
+                <div className="text-center">
+                  <div className="text-[10px] font-mono text-white/25 uppercase tracking-widest">
+                    Part {sections.findIndex(s => s.subject === currentSection.subject) + 1}
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-mono font-black text-slate-100">
-                      {currentSection.endIdx - currentSection.startIdx + 1}
-                    </div>
-                    <div className="text-[10px] text-slate-600 uppercase tracking-wider">Questions</div>
+                  <div className="text-sm font-semibold text-white/80 mt-0.5">
+                    {language === 'hi' ? currentSection.label.hi : currentSection.label.en}
+                  </div>
+                  <div className="text-[11px] text-white/30 mt-0.5">
+                    {currentSection.endIdx - currentSection.startIdx + 1} questions
                   </div>
                 </div>
+                <div className="flex-1 h-px bg-white/8" />
               </div>
             )}
 
-            {/* Question */}
-            <div className="mb-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-mono text-slate-500">Q{current + 1}</span>
-                {q.subject && q.subject !== subject && (
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md border border-slate-700">
-                    {q.subject}
-                  </span>
-                )}
-                {q.year && (
-                  <span className="text-[10px] text-slate-600 font-mono">{q.year}</span>
-                )}
-              </div>
-              <div className="text-base md:text-lg font-medium leading-relaxed text-slate-100">
-                {renderText(questionText)}
-              </div>
+            {/* Question number */}
+            <div className="flex items-baseline gap-2 mb-4">
+              <span className="text-[11px] font-mono text-white/30 uppercase tracking-widest">Q{current + 1}</span>
+              {q.year && <span className="text-[11px] text-white/22 font-mono">{q.year}</span>}
             </div>
 
+            {/* Question text */}
+            <div className="text-[17px] md:text-lg font-medium leading-relaxed text-white/90 mb-6">
+              {renderText(questionText)}
+            </div>
+
+            {/* Diagram */}
             {q.diagram_url && (
-              <div className="border border-slate-800 rounded-xl overflow-hidden bg-white p-2 flex justify-center mb-5">
+              <div className="rounded-xl overflow-hidden bg-white p-2 flex justify-center mb-6">
                 <img src={q.diagram_url} alt="Diagram" className="max-w-full max-h-64 object-contain" />
               </div>
             )}
 
             {/* Options */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {['A', 'B', 'C', 'D'].map(opt => {
                 const optText = optionsSet?.[opt] || optionsSet?.[opt.toLowerCase()] || ''
                 const isSelected = answers[current] === opt
                 const isCorrect = q.correct_answer === opt
 
-                let container = 'border-slate-800 bg-slate-900 hover:border-slate-600 hover:bg-slate-800/60 cursor-pointer'
-                let text = 'text-slate-300'
-                let badge = 'border-slate-700 text-slate-500'
+                let cls = 'border-white/8 text-white/65 hover:border-white/22 hover:text-white/85 cursor-pointer'
+                let badgeCls = 'border-white/15 text-white/35'
                 let badgeLabel: React.ReactNode = opt
 
                 if (isSubmitted || isCurrentRevealed) {
                   if (isCorrect) {
-                    container = 'border-emerald-500/40 bg-emerald-500/10 cursor-default'
-                    text = 'text-emerald-300 font-medium'
-                    badge = 'bg-emerald-500 border-emerald-500 text-white'
+                    cls = 'border-emerald-500/50 bg-emerald-500/8 text-emerald-200 cursor-default'
+                    badgeCls = 'bg-emerald-500 border-emerald-500 text-white'
                     badgeLabel = '✓'
                   } else if (isSelected) {
-                    container = 'border-red-500/40 bg-red-500/10 cursor-default'
-                    text = 'text-red-400'
-                    badge = 'bg-red-500 border-red-500 text-white'
+                    cls = 'border-red-500/40 bg-red-500/8 text-red-300 cursor-default'
+                    badgeCls = 'bg-red-500 border-red-500 text-white'
                     badgeLabel = '✗'
                   } else {
-                    container = 'border-slate-800 bg-slate-900/40 cursor-default'
-                    text = 'text-slate-600'
+                    cls = 'border-white/5 text-white/25 cursor-default'
+                    badgeCls = 'border-white/10 text-white/20'
                   }
                 } else if (isSelected) {
-                  container = 'border-emerald-500 bg-emerald-500/5 cursor-pointer'
-                  text = 'text-emerald-300 font-medium'
-                  badge = 'bg-emerald-500 border-emerald-500 text-white'
+                  cls = 'border-white/40 bg-white/5 text-white cursor-pointer'
+                  badgeCls = 'bg-white text-[#060b10] border-white'
                 }
 
                 return (
@@ -443,12 +383,12 @@ export default function ExamEngine({
                     key={opt}
                     disabled={isSubmitted || isCurrentRevealed}
                     onClick={() => handleSelectOption(opt)}
-                    className={`w-full text-left p-3.5 md:p-4 rounded-xl border transition-all duration-150 flex items-center gap-3 text-sm ${container}`}
+                    className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all duration-150 flex items-center gap-3.5 text-sm ${cls}`}
                   >
-                    <span className={`w-6 h-6 rounded-full border flex items-center justify-center text-[11px] font-bold shrink-0 ${badge}`}>
+                    <span className={`w-6 h-6 rounded-full border flex items-center justify-center text-[11px] font-bold shrink-0 transition-all ${badgeCls}`}>
                       {badgeLabel}
                     </span>
-                    <div className={`flex-1 leading-snug ${text}`}>{renderText(optText)}</div>
+                    <div className="flex-1 leading-snug">{renderText(optText)}</div>
                   </button>
                 )
               })}
@@ -456,24 +396,24 @@ export default function ExamEngine({
 
             {/* Explanation */}
             {(isSubmitted || isCurrentRevealed) && q.explanation && (
-              <div className="mt-5 pl-4 pr-3 py-3.5 border-l-2 border-emerald-500 bg-slate-900/70 rounded-r-xl">
-                <div className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">✨ Explanation</div>
-                <div className="text-slate-400 text-sm leading-relaxed">{renderText(q.explanation)}</div>
+              <div className="mt-5 border-l-2 border-emerald-500/60 pl-4 py-1">
+                <div className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-widest mb-2">Explanation</div>
+                <div className="text-white/55 text-sm leading-relaxed">{renderText(q.explanation)}</div>
               </div>
             )}
 
-            {/* Results card (last question) */}
-            {isSubmitted && current === questions.length - 1 && (
-              <div className="mt-6 border border-slate-800 bg-slate-900/60 rounded-2xl p-6 text-center">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Final Score</p>
-                <div className="text-5xl font-mono font-black text-white mt-1">
-                  {score()}<span className="text-lg text-slate-600 font-normal"> / {questions.length}</span>
+            {/* Results card — shown on every question after submission */}
+            {isSubmitted && (
+              <div className="mt-8 border border-white/8 bg-white/3 rounded-2xl p-7 text-center">
+                <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-3">Final Score</p>
+                <div className="text-5xl font-mono font-black text-white/90">
+                  {score()}<span className="text-xl text-white/25 font-normal"> / {questions.length}</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-2">{Math.round((score() / questions.length) * 100)}% accuracy</p>
-                <button onClick={() => router.push('/results')} className="mt-5 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold py-3 rounded-xl transition">
+                <p className="text-sm text-white/40 mt-2">{Math.round((score() / questions.length) * 100)}% accuracy</p>
+                <button onClick={() => router.push('/results')} className="mt-6 w-full bg-white text-[#060b10] text-sm font-bold py-3 rounded-xl transition hover:bg-white/90">
                   View Full Report →
                 </button>
-                <button onClick={() => router.push(backPath)} className="mt-2 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold py-3 rounded-xl transition">
+                <button onClick={() => router.push(backPath)} className="mt-2 w-full border border-white/10 text-white/60 text-sm font-medium py-3 rounded-xl transition hover:border-white/22 hover:text-white/80">
                   Try Another
                 </button>
               </div>
@@ -482,24 +422,20 @@ export default function ExamEngine({
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-3 mt-8">
               <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 transition">
-                ← Previous
+                className="px-5 py-2.5 rounded-xl text-sm font-medium border border-white/8 text-white/45 hover:text-white/75 hover:border-white/18 disabled:opacity-25 transition">
+                ← Prev
               </button>
               {!isSubmitted ? (
                 <button
                   onClick={() => current === questions.length - 1 ? handleFinish() : setCurrent(c => c + 1)}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-bold shadow transition ml-auto ${
-                    current === questions.length - 1
-                      ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                      : 'bg-white text-slate-950 hover:bg-slate-200'
-                  }`}
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold transition ml-auto bg-white text-[#060b10] hover:bg-white/90"
                 >
-                  {current === questions.length - 1 ? 'Finish & View Score' : 'Next →'}
+                  {current === questions.length - 1 ? 'Finish →' : 'Next →'}
                 </button>
               ) : (
                 <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 transition ml-auto">
-                  Next Review →
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium border border-white/8 text-white/45 hover:text-white/75 hover:border-white/18 disabled:opacity-25 transition ml-auto">
+                  Next →
                 </button>
               )}
             </div>
@@ -507,24 +443,28 @@ export default function ExamEngine({
         </main>
 
         {/* ── Desktop Sidebar ── */}
-        <aside className="hidden md:flex flex-col w-60 lg:w-64 shrink-0 border-l border-slate-800 bg-slate-900/40">
-          <div className="p-4 border-b border-slate-800">
-            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-3">Question Palette</p>
-            <div className="flex gap-4 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/60 inline-block" />Answered</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-slate-700 inline-block" />Skipped</span>
+        <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 border-l border-white/6">
+          <div className="p-4 border-b border-white/6">
+            <p className="text-[10px] font-mono text-white/25 uppercase tracking-widest mb-3">Questions</p>
+            <div className="flex gap-3 text-[11px] text-white/35">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm bg-white/50 inline-block" />Answered
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm bg-white/10 inline-block" />Skipped
+              </span>
             </div>
           </div>
           <div className="p-4 flex-1 overflow-y-auto">
             <div className="grid grid-cols-5 gap-1.5">
               {questions.map((_, i) => (
                 <button key={i} onClick={() => setCurrent(i)}
-                  className={`aspect-square rounded-lg text-xs font-mono font-bold transition-all ${
+                  className={`aspect-square rounded-lg text-xs font-mono font-semibold transition-all ${
                     i === current
-                      ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 bg-white text-slate-950'
+                      ? 'bg-white text-[#060b10]'
                       : answers[i] !== undefined
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-slate-800 text-slate-500 border border-slate-700 hover:border-slate-600'
+                      ? 'bg-white/15 text-white/65 hover:bg-white/22'
+                      : 'bg-white/4 text-white/25 border border-white/6 hover:border-white/15 hover:text-white/45'
                   }`}
                 >
                   {i + 1}
@@ -532,11 +472,11 @@ export default function ExamEngine({
               ))}
             </div>
           </div>
-          <div className="p-4 border-t border-slate-800 space-y-2 text-xs">
-            <div className="flex justify-between text-slate-500"><span>Answered</span><span className="text-emerald-400 font-bold font-mono">{attempted}</span></div>
-            <div className="flex justify-between text-slate-500"><span>Remaining</span><span className="font-mono">{questions.length - attempted}</span></div>
+          <div className="p-4 border-t border-white/6 space-y-2 text-xs">
+            <div className="flex justify-between text-white/35"><span>Answered</span><span className="text-white/65 font-mono font-semibold">{attempted}</span></div>
+            <div className="flex justify-between text-white/35"><span>Remaining</span><span className="font-mono">{questions.length - attempted}</span></div>
             {!isSubmitted && (
-              <button onClick={handleFinish} className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl transition text-sm">
+              <button onClick={handleFinish} className="w-full mt-3 bg-white text-[#060b10] font-bold py-2.5 rounded-xl transition hover:bg-white/90 text-sm">
                 Submit Exam
               </button>
             )}
@@ -545,29 +485,35 @@ export default function ExamEngine({
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 z-30">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#060b10]/98 border-t border-white/6 px-4 py-3 z-30">
         <div className="flex justify-between items-center gap-2">
           <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition">
+            className="px-4 py-2.5 rounded-xl text-xs font-medium border border-white/8 text-white/40 hover:text-white/70 disabled:opacity-25 transition">
             ← Prev
           </button>
-          {!isSubmitted && (
+          {!isSubmitted ? (
             <button onClick={handleFinish}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 transition">
+              className="px-4 py-2.5 rounded-xl text-xs font-medium border border-red-500/30 text-red-400/80 hover:border-red-500/55 hover:text-red-400 transition">
               Submit
+            </button>
+          ) : (
+            <button onClick={() => router.push('/results')}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-[#060b10] hover:bg-white/90 transition">
+              Report →
             </button>
           )}
           {!isSubmitted ? (
             <button
-              onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-slate-950 hover:bg-slate-200 disabled:opacity-30 transition"
+              onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
+              disabled={current === questions.length - 1}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-[#060b10] hover:bg-white/90 disabled:opacity-25 transition"
             >
               Next →
             </button>
           ) : (
             <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition">
-              Next Review →
+              className="px-4 py-2.5 rounded-xl text-xs font-medium border border-white/8 text-white/40 disabled:opacity-25 transition">
+              Next →
             </button>
           )}
         </div>

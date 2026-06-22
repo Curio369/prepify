@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import AdBanner from '@/components/ads/AdUnit';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -33,7 +34,7 @@ export default function CtetLandingPage() {
       {/* Top nav */}
       <nav className="border-b border-slate-800 px-4 md:px-10 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={28} height={28} style={{ width: 28, height: 28, flexShrink: 0 }} />
+          <Image src="/Logos/logo-icon_dark-Photoroom.png" alt="Prepify" width={80} height={28} style={{ height: 28, width: 'auto', flexShrink: 0 }} />
           <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
           <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ CTET</span>
         </div>
@@ -127,11 +128,8 @@ export default function CtetLandingPage() {
             {loading ? 'Assembling Mock Test...' : 'Start Free Test 🚀'}
           </button>
 
-          {/* Ad placeholder */}
           <div className="mt-6 pt-4 border-t border-slate-800">
-            <div className="bg-slate-950 rounded-xl h-24 flex items-center justify-center text-[10px] text-slate-700 border border-dashed border-slate-800 uppercase tracking-wider">
-              Sponsored Advertisement
-            </div>
+            <AdBanner />
           </div>
         </div>
       </div>

@@ -230,7 +230,7 @@ function ExamContent() {
                 <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   ✨ Instant AI Explanation
                 </h4>
-                <p className="text-zinc-300 text-sm leading-relaxed">{q.explanation}</p>
+                <div className="text-zinc-300 text-sm leading-relaxed">{renderText(q.explanation)}</div>
               </div>
             )}
 

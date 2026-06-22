@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import AdBanner from '@/components/ads/AdUnit';
 
 // ── Static subject sets ──────────────────────────────────────────────────────
 // Paper I: CDP + Lang I Hindi + Lang II (choice) + Mathematics + EVS
@@ -119,78 +120,146 @@ export default function UptetLandingPage() {
     }
   }
 
-  const MODES: { id: Mode; label: string; sub: string }[] = [
-    { id: 'subject', label: 'Topic Practice', sub: 'One subject at a time' },
-    { id: 'full',    label: 'Full Mock Exam', sub: '150 Q · 150 min'       },
-    { id: 'pyq',     label: 'PYQ Mock Test',  sub: 'Real past papers'      },
+  const [dark, setDark] = useState(false)
+
+  const MODES: { id: Mode; label: string }[] = [
+    { id: 'subject', label: 'Topic Practice' },
+    { id: 'full',    label: 'Full Mock'      },
+    { id: 'pyq',     label: 'PYQ Papers'    },
   ]
 
-  return (
-    <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 flex flex-col overflow-x-hidden">
+  // Theme helpers
+  const bg   = dark ? 'bg-[#0a0d14]'    : 'bg-[#e8e4dc]'
+  const card = dark ? 'bg-[#13181f]'    : 'bg-[#faf8f4]'
+  const bdr  = dark ? 'border-white/10' : 'border-black/12'
+  const txt  = dark ? 'text-white'      : 'text-[#0f0f0f]'
+  const muted= dark ? 'text-white/60'   : 'text-black/55'
+  const sub  = dark ? 'text-white/78'   : 'text-black/70'
+  const inp     = dark ? 'bg-[#1a2030] border-white/14 text-white' : 'bg-[#f0efe9] border-black/12 text-[#0f0f0f]'
 
-      {/* Top bar */}
-      <nav className="px-5 md:px-10 py-4 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={34} height={34} style={{ width: 34, height: 34, flexShrink: 0 }} />
-          <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
-          <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ UPTET</span>
+  // Tab bar helpers
+  const tabBar    = dark ? 'bg-white/5 border border-white/10' : 'bg-black/7 border border-black/8'
+  const tabActive = dark ? 'bg-white text-[#0f0f0f] shadow-sm' : 'bg-[#0f0f0f] text-white shadow-sm'
+  const tabInact  = dark ? 'text-white/55 hover:text-white/80' : 'text-black/50 hover:text-black/75'
+
+  // Generic selectable option button (language, question count, etc.)
+  const optActive = dark ? 'bg-white/90 border-white/70 text-[#0f0f0f]' : 'bg-[#0f0f0f] border-[#0f0f0f] text-white'
+  const optInact  = dark ? 'border-white/15 text-white/65 hover:border-white/35 hover:text-white/90' : 'border-black/14 text-black/58 hover:border-black/28 hover:text-black/80'
+
+  const logoSrc = dark ? '/Logos/logo-icon_dark-Photoroom.png' : '/Logos/logo-icon_light-Photoroom.png'
+
+  return (
+    <div className={`min-h-screen w-full ${bg} ${txt} flex flex-col overflow-x-hidden transition-colors duration-300`} style={{ fontFamily: 'var(--font-space), var(--font-geist-sans), sans-serif' }}>
+
+      {/* ── Navbar ── */}
+      <nav className={`px-5 md:px-10 py-3.5 flex items-center justify-between border-b ${bdr} transition-colors`}>
+        <div className="flex items-center gap-2.5">
+          <Image src={logoSrc} alt="Prepify" width={80} height={30} style={{ height: 30, width: 'auto', flexShrink: 0 }} />
+          <span className={`font-bold tracking-tight text-sm ${txt}`}>Prepify</span>
+          <span className={`text-[10px] font-mono uppercase tracking-wider hidden sm:block ${muted}`}>/ UPTET</span>
         </div>
-        <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition">← Home</a>
+        <div className="flex items-center gap-3">
+          {/* Light / dark toggle */}
+          <button
+            onClick={() => setDark(d => !d)}
+            aria-label="Toggle colour mode"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-medium transition-all select-none ${
+              dark
+                ? 'bg-white/8 border-white/12 text-white/55 hover:bg-white/14'
+                : 'bg-black/5 border-black/10 text-black/45 hover:bg-black/9'
+            }`}
+          >
+            {dark ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            )}
+            <span className="hidden sm:inline">{dark ? 'Light' : 'Dark'}</span>
+          </button>
+          <a href="/" className={`text-xs transition-opacity opacity-50 hover:opacity-80 ${txt}`}>← Home</a>
+        </div>
       </nav>
 
+      {/* ── Content ── */}
       <div className="flex-1 flex flex-col md:flex-row items-start md:items-center justify-center gap-10 px-4 md:px-10 py-10 max-w-5xl mx-auto w-full">
 
-        {/* Left hero (desktop) */}
+        {/* Left hero — desktop only */}
         <div className="hidden md:flex flex-col flex-1 pr-8">
-          <div className="inline-flex items-center gap-2 text-xs text-emerald-400 font-semibold tracking-widest uppercase mb-5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className={`inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-widest uppercase mb-6 px-3 py-1.5 rounded-full w-fit border ${
+            dark ? 'bg-white/5 border-white/10 text-white/50' : 'bg-black/5 border-black/8 text-black/40'
+          }`}>
             Free · No Login Required
           </div>
-          <h1 className="text-5xl font-bold tracking-tight leading-[1.1] mb-5">
-            The UPTET prep<br />
-            <span className="text-emerald-400">teachers trust.</span>
+
+          <h1 className={`text-5xl font-bold tracking-tight leading-[1.08] mb-5 ${txt}`}>
+            UPTET prep that<br />
+            actually works.
           </h1>
-          <p className="text-slate-400 text-base leading-relaxed mb-8 max-w-sm">
-            Topic-wise practice, full 150-question mocks, and real past year papers — all with instant AI explanations.
+
+          <p className={`text-base leading-relaxed mb-7 max-w-sm ${sub}`}>
+            Topic-wise practice, full 150-question mocks, and real past year papers — with instant AI explanations.
           </p>
-          <div className="grid grid-cols-2 gap-3 max-w-xs">
+
+          {/* Paper I / Paper II callouts */}
+          <div className="flex gap-3 mb-7">
+            <div className={`flex-1 rounded-2xl border px-4 py-3.5 ${dark ? 'bg-amber-950/20 border-amber-800/30' : 'bg-amber-100/70 border-amber-300/60'}`}>
+              <div className={`text-xs font-semibold mb-0.5 ${dark ? 'text-amber-400' : 'text-amber-700'}`}>Paper I</div>
+              <div className={`text-sm font-medium ${dark ? 'text-amber-200' : 'text-amber-900'}`}>Class 1–5</div>
+              <div className={`text-[11px] mt-0.5 ${dark ? 'text-amber-600' : 'text-amber-600'}`}>CDP · Maths · EVS · Lang</div>
+            </div>
+            <div className={`flex-1 rounded-2xl border px-4 py-3.5 ${dark ? 'bg-red-950/20 border-red-800/30' : 'bg-red-100/70 border-red-300/60'}`}>
+              <div className={`text-xs font-semibold mb-0.5 ${dark ? 'text-red-400' : 'text-red-600'}`}>Paper II</div>
+              <div className={`text-sm font-medium ${dark ? 'text-red-200' : 'text-red-800'}`}>Class 6–8</div>
+              <div className={`text-[11px] mt-0.5 ${dark ? 'text-red-600' : 'text-red-500'}`}>CDP · Science / Soc. St.</div>
+            </div>
+          </div>
+
+          {/* Feature chips */}
+          <div className="grid grid-cols-2 gap-2.5 max-w-xs mb-8">
             {[
               ['Real PYQ Papers', '2013 – 2022'],
               ['AI Explanations', 'Every question'],
               ['Hindi + English', 'Bilingual'],
               ['No Repeat Qs', 'Smart tracking'],
-            ].map(([title, sub]) => (
-              <div key={title} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-                <div className="text-sm font-semibold text-slate-200">{title}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
+            ].map(([title, hint]) => (
+              <div key={title} className={`rounded-xl border px-3 py-2.5 ${dark ? `bg-white/3 ${bdr}` : `bg-black/3 ${bdr}`}`}>
+                <div className={`text-xs font-semibold ${txt}`}>{title}</div>
+                <div className={`text-[10px] mt-0.5 ${muted}`}>{hint}</div>
               </div>
             ))}
           </div>
+
+          {/* CTET link */}
+          <a
+            href="/ctet"
+            className={`inline-flex items-center gap-1.5 text-sm font-medium transition-opacity opacity-75 hover:opacity-100 ${txt}`}
+          >
+            Also try CTET practice
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
         </div>
 
         {/* Right: Selection panel */}
         <div className="w-full md:w-[420px] shrink-0">
 
           {/* Mobile header */}
-          <div className="md:hidden mb-6 text-center">
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Free · No Login
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">UPTET Practice Hub</h1>
-            <p className="text-slate-500 text-sm mt-1">Topic practice, full mocks, past papers.</p>
+          <div className="md:hidden mb-5 text-center">
+            <h1 className={`text-2xl font-bold tracking-tight ${txt}`}>UPTET Practice Hub</h1>
+            <p className={`text-sm mt-1 ${sub}`}>Topic practice, full mocks, past papers.</p>
+            <a href="/ctet" className={`inline-flex items-center gap-1 text-xs mt-2.5 font-medium transition-opacity opacity-70 hover:opacity-95 ${txt}`}>
+              Also try CTET
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
           </div>
 
           {/* Mode tabs */}
-          <div className="flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1 mb-5">
+          <div className={`flex rounded-xl ${tabBar} p-1 mb-4`}>
             {MODES.map(m => (
               <button
                 key={m.id}
                 onClick={() => setMode(m.id)}
                 className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all text-center ${
-                  mode === m.id
-                    ? 'bg-emerald-500 text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-slate-200'
+                  mode === m.id ? tabActive : tabInact
                 }`}
               >
                 {m.label}
@@ -198,17 +267,18 @@ export default function UptetLandingPage() {
             ))}
           </div>
 
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 space-y-5">
+          {/* Panel card */}
+          <div className={`${card} border ${bdr} rounded-2xl p-5 space-y-5`}>
 
             {/* ── Topic Practice ── */}
             {mode === 'subject' && (
               <>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Subject</label>
+                  <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>Subject</label>
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
-                    className="w-full bg-[#0d1422] border border-white/10 rounded-xl p-3 text-slate-200 text-sm focus:outline-none focus:border-emerald-500/60 transition"
+                    className={`w-full ${inp} border rounded-xl p-3 text-sm focus:outline-none transition`}
                   >
                     {Object.entries(SUBJECT_GROUPS).map(([group, subjects]) => (
                       <optgroup key={group} label={group}>
@@ -217,36 +287,34 @@ export default function UptetLandingPage() {
                     ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Questions</label>
+                  <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>Questions</label>
                   <div className="grid grid-cols-4 gap-2">
                     {[5, 10, 30, 50].map(n => (
                       <button key={n} onClick={() => setQuestionCount(n)}
                         className={`py-2.5 rounded-xl text-sm font-bold border transition ${
-                          questionCount === n
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-500'
-                            : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20'
+                          questionCount === n ? optActive : optInact
                         }`}
                       >{n}</button>
                     ))}
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Practice Mode</label>
+                  <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>Practice Mode</label>
                   <div className="grid grid-cols-2 gap-2">
                     {([
-                      { value: 'learning', label: '📖 Learning', sub: 'See answer instantly' },
-                      { value: 'exam',     label: '🎯 Exam',     sub: 'Submit & analyse'    },
+                      { value: 'learning', label: 'Learning', hint: 'See answer instantly' },
+                      { value: 'exam',     label: 'Exam',     hint: 'Submit & analyse'    },
                     ] as const).map(opt => (
                       <button key={opt.value} onClick={() => setPracticeMode(opt.value)}
                         className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition text-left ${
-                          practiceMode === opt.value
-                            ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
-                            : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                          practiceMode === opt.value ? optActive : optInact
                         }`}
                       >
                         <div>{opt.label}</div>
-                        <div className="text-[10px] font-normal opacity-70 mt-0.5">{opt.sub}</div>
+                        <div className="text-[10px] font-normal opacity-60 mt-0.5">{opt.hint}</div>
                       </button>
                     ))}
                   </div>
@@ -257,86 +325,91 @@ export default function UptetLandingPage() {
             {/* ── Full Mock Exam ── */}
             {mode === 'full' && (
               <>
-                {/* Paper I / II */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Paper</label>
+                  <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>Paper</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {(['I', 'II'] as const).map(p => (
-                      <button key={p} onClick={() => setPaper(p)}
-                        className={`py-3 rounded-xl border text-sm font-bold transition ${
-                          paper === p
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-500'
-                            : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        Paper {p}
-                        <span className="block text-[10px] font-normal opacity-70 mt-0.5">
-                          {p === 'I' ? 'Class 1–5' : 'Class 6–8'}
-                        </span>
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => setPaper('I')}
+                      className={`py-3 rounded-xl border text-sm font-bold transition ${
+                        paper === 'I'
+                          ? dark
+                            ? 'bg-amber-950/50 border-amber-600/50 text-amber-300'
+                            : 'bg-amber-100 border-amber-400/70 text-amber-800'
+                          : optInact
+                      }`}
+                    >
+                      Paper I
+                      <span className="block text-[10px] font-normal opacity-60 mt-0.5">Class 1–5</span>
+                    </button>
+                    <button
+                      onClick={() => setPaper('II')}
+                      className={`py-3 rounded-xl border text-sm font-bold transition ${
+                        paper === 'II'
+                          ? dark
+                            ? 'bg-red-950/50 border-red-600/50 text-red-300'
+                            : 'bg-red-100 border-red-400/70 text-red-800'
+                          : optInact
+                      }`}
+                    >
+                      Paper II
+                      <span className="block text-[10px] font-normal opacity-60 mt-0.5">Class 6–8</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Syllabus preview */}
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-1.5">
-                  <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">
+                {/* Syllabus breakdown */}
+                <div className={`border ${bdr} rounded-xl p-3 space-y-1.5 ${dark ? 'bg-white/2' : 'bg-black/2'}`}>
+                  <p className={`text-[10px] font-mono uppercase tracking-widest mb-2 ${muted}`}>
                     {paper === 'I' ? 'Paper I Syllabus' : 'Paper II Syllabus'}
                   </p>
                   {(paper === 'I'
                     ? [
-                        { sec: 'I',   sub: 'Child Development & Pedagogy', q: 30, fixed: true  },
-                        { sec: 'II',  sub: 'Language I – Hindi (Mandatory)', q: 30, fixed: true  },
-                        { sec: 'III', sub: 'Language II – your choice ↓',   q: 30, fixed: false },
-                        { sec: 'IV',  sub: 'Mathematics',                   q: 30, fixed: true  },
-                        { sec: 'V',   sub: 'Environmental Studies (EVS)',    q: 30, fixed: true  },
+                        { sec: 'I',   label: 'Child Development & Pedagogy', q: 30, choose: false },
+                        { sec: 'II',  label: 'Language I – Hindi',            q: 30, choose: false },
+                        { sec: 'III', label: 'Language II – your choice ↓',   q: 30, choose: true  },
+                        { sec: 'IV',  label: 'Mathematics',                   q: 30, choose: false },
+                        { sec: 'V',   label: 'Environmental Studies',         q: 30, choose: false },
                       ]
                     : [
-                        { sec: 'I',   sub: 'Child Development & Pedagogy', q: 30, fixed: true  },
-                        { sec: 'II',  sub: 'Language I – Hindi (Mandatory)', q: 30, fixed: true  },
-                        { sec: 'III', sub: 'Language II – your choice ↓',   q: 30, fixed: false },
-                        { sec: 'IV',  sub: 'Optional Subject – your choice ↓', q: 60, fixed: false },
+                        { sec: 'I',   label: 'Child Development & Pedagogy',      q: 30, choose: false },
+                        { sec: 'II',  label: 'Language I – Hindi',                 q: 30, choose: false },
+                        { sec: 'III', label: 'Language II – your choice ↓',        q: 30, choose: true  },
+                        { sec: 'IV',  label: 'Optional Subject – your choice ↓',   q: 60, choose: true  },
                       ]
                   ).map(row => (
-                    <div key={row.sec} className={`flex items-center gap-2.5 text-xs ${row.fixed ? 'text-slate-400' : 'text-emerald-400'}`}>
-                      <span className="font-mono text-[10px] text-slate-600 w-4 shrink-0">{row.sec}</span>
-                      <span className="flex-1">{row.sub}</span>
-                      <span className="font-mono text-[10px] text-slate-600 shrink-0">{row.q}Q</span>
+                    <div key={row.sec} className={`flex items-center gap-2 text-xs`}>
+                      <span className={`font-mono text-[10px] w-4 shrink-0 ${muted}`}>{row.sec}</span>
+                      <span className={`flex-1 ${row.choose ? (dark ? 'text-amber-400' : 'text-amber-600') : sub}`}>{row.label}</span>
+                      <span className={`font-mono text-[10px] shrink-0 ${muted}`}>{row.q}Q</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Language II choice — both papers */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                    Section III · Language II <span className="text-emerald-500 normal-case font-normal">(Choose 1)</span>
+                  <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
+                    Section III · Language II
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {LANG_II_OPTIONS.map(opt => (
                       <button key={opt.value} onClick={() => setLangII(opt.value)}
                         className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
-                          langII === opt.value
-                            ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
-                            : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                          langII === opt.value ? optActive : optInact
                         }`}
                       >{opt.label}</button>
                     ))}
                   </div>
                 </div>
 
-                {/* Optional subject — Paper II only */}
                 {paper === 'II' && (
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                      Section IV · Optional Subject <span className="text-emerald-500 normal-case font-normal">(Choose 1 · 60 Q)</span>
+                    <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
+                      Section IV · Optional Subject <span className="normal-case font-normal">(60 Q)</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       {P2_OPTIONAL.map(opt => (
                         <button key={opt.value} onClick={() => setP2Optional(opt.value)}
                           className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
-                            p2Optional === opt.value
-                              ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
-                              : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                            p2Optional === opt.value ? optActive : optInact
                           }`}
                         >{opt.label}</button>
                       ))}
@@ -344,8 +417,8 @@ export default function UptetLandingPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-emerald-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div className={`flex items-center gap-2 text-xs border ${bdr} rounded-xl px-3 py-2.5 ${sub}`}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 opacity-60"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   150 Questions · 150 Minutes · Auto-submits on timeout
                 </div>
               </>
@@ -354,8 +427,8 @@ export default function UptetLandingPage() {
             {/* ── PYQ Mock Test ── */}
             {mode === 'pyq' && (
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Select Paper</label>
-                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-3 ${muted}`}>Select Paper</label>
+                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
                   {PYQ_PAPERS.map(p => {
                     const isP1 = p.paper === 'I'
                     const isSelected = selectedPyq === p.id
@@ -365,38 +438,35 @@ export default function UptetLandingPage() {
                         onClick={() => { setSelectedPyq(p.id); setPyqLangII(null); setPyqStream(null); setPyqError(null) }}
                         className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-sm transition flex items-center justify-between ${
                           isSelected
-                            ? isP1
-                              ? 'border-emerald-500/50 bg-emerald-500/8 text-slate-100'
-                              : 'border-blue-500/50 bg-blue-500/8 text-slate-100'
-                            : 'border-white/[0.07] bg-white/[0.02] text-slate-400 hover:border-white/15 hover:text-slate-300'
+                            ? dark
+                              ? 'border-white/30 bg-white/7 text-white'
+                              : 'border-black/25 bg-black/5 text-[#0f0f0f]'
+                            : dark
+                              ? 'border-white/14 bg-white/3 text-white/72 hover:border-white/28 hover:text-white/95'
+                              : 'border-black/12 bg-transparent text-black/62 hover:border-black/22 hover:text-black/85'
                         }`}
                       >
                         <span className="font-medium">{p.label}</span>
                         <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border shrink-0 ${
                           isP1
-                            ? isSelected
-                              ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                              : 'border-emerald-900/60 text-emerald-700 bg-emerald-950/40'
-                            : isSelected
-                              ? 'border-blue-500/40 text-blue-400 bg-blue-500/10'
-                              : 'border-blue-900/60 text-blue-700 bg-blue-950/40'
+                            ? dark ? 'border-amber-700/50 text-amber-500 bg-amber-950/40' : 'border-amber-300 text-amber-700 bg-amber-50'
+                            : dark ? 'border-red-700/50 text-red-500 bg-red-950/40'       : 'border-red-300 text-red-600 bg-red-50'
                         }`}>P-{p.paper}</span>
                       </button>
                     )
                   })}
                 </div>
-                <div className="mt-3 space-y-3">
+
+                <div className="mt-4 space-y-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                      Language II <span className="text-emerald-500 normal-case font-normal">(Section III)</span>
+                    <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
+                      Language II <span className="normal-case font-normal">(Section III)</span>
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {LANG_II_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => { setPyqLangII(opt.value); setPyqError(null) }}
                           className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
-                            pyqLangII === opt.value
-                              ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
-                              : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                            pyqLangII === opt.value ? optActive : optInact
                           }`}
                         >{opt.label}</button>
                       ))}
@@ -405,16 +475,14 @@ export default function UptetLandingPage() {
 
                   {PYQ_PAPERS.find(p => p.id === selectedPyq)?.paper === 'II' && (
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                        Optional Subject <span className="text-emerald-500 normal-case font-normal">(Section IV · 60 Q)</span>
+                      <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
+                        Optional Subject <span className="normal-case font-normal">(Section IV · 60 Q)</span>
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         {P2_OPTIONAL.map(opt => (
                           <button key={opt.value} onClick={() => { setPyqStream(opt.value as 'ms' | 'Social Studies'); setPyqError(null) }}
                             className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
-                              pyqStream === opt.value
-                                ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
-                                : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                              pyqStream === opt.value ? optActive : optInact
                             }`}
                           >{opt.label}</button>
                         ))}
@@ -422,39 +490,42 @@ export default function UptetLandingPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 mt-3">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-emerald-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+
+                <div className={`flex items-center gap-2 text-xs border ${bdr} rounded-xl px-3 py-2.5 mt-3 ${sub}`}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 opacity-60"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   150 min timer · Questions from actual {PYQ_PAPERS.find(p => p.id === selectedPyq)?.year} paper
                 </div>
               </div>
             )}
 
+            {/* Error */}
             {pyqError && mode === 'pyq' && (
-              <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 rounded-xl px-3 py-2.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 {pyqError}
               </div>
             )}
 
+            {/* Start button */}
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 text-sm tracking-wide shadow-lg shadow-emerald-500/20"
+              className={`w-full font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 text-sm tracking-wide ${
+                dark ? 'bg-white text-[#0f0f0f] hover:bg-white/90' : 'bg-[#0f0f0f] text-white hover:bg-[#1c1c1c]'
+              }`}
             >
               {loading
                 ? 'Preparing...'
                 : mode === 'subject'
                 ? 'Start Practice'
                 : mode === 'full'
-                ? 'Start Full Mock Exam'
+                ? `Start Full Mock — Paper ${paper}`
                 : 'Start PYQ Mock Test'}
             </button>
           </div>
 
           {/* Ad slot */}
-          <div className="mt-4 bg-white/[0.02] border border-dashed border-white/[0.06] rounded-xl h-20 flex items-center justify-center text-[10px] text-slate-700 uppercase tracking-widest">
-            Advertisement
-          </div>
+          <div className="mt-4"><AdBanner /></div>
         </div>
       </div>
     </div>
