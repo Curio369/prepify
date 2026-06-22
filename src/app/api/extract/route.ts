@@ -15,11 +15,23 @@ import { supabase } from '@/lib/supabase'
 //     }
 //   }
 // });
+// const ai = new GoogleGenAI({
+//   vertexai: true,
+//   project: 'green-radius-464018-v2',
+//   location: 'global',
+//   // By omitting googleAuthOptions, the SDK automatically uses your local credentials (ADC)
+//   // NOTE: This does NOT work on Vercel — use the credentials block below instead
+// });
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
-  location: 'global', // Use a specific region like us-central1 or asia-south1
-  // By omitting googleAuthOptions, the SDK automatically uses your local credentials
+  location: 'global',
+  googleAuthOptions: {
+    credentials: {
+      client_email: process.env.GCP_CLIENT_EMAIL,
+      private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }
+  }
 });
 
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
