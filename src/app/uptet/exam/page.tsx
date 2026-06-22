@@ -11,6 +11,7 @@ function UptetExamContent() {
   const timer = s.get('timer') ? parseInt(s.get('timer')!) : undefined
   const year = s.get('year') || undefined
   const ordered = s.get('ordered') === 'true'
+  const sortBy = s.get('sort') || undefined
 
   return (
     <ExamEngine
@@ -22,6 +23,7 @@ function UptetExamContent() {
       timerMinutes={timer}
       year={year}
       ordered={ordered}
+      sortBy={sortBy}
     />
   )
 }

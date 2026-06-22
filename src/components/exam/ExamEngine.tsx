@@ -25,24 +25,23 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-// Map subject names → Part label (bilingual, matching real paper format)
+// Subject → bilingual section label (Part number shown dynamically from position)
 const PART_LABELS: Record<string, { en: string; hi: string }> = {
-  'Child Development and Pedagogy': { en: 'Part I – CDP',         hi: 'भाग I – बाल विकास' },
-  'Language I Hindi':               { en: 'Part II – Lang I (Hindi)',  hi: 'भाग II – भाषा I हिन्दी' },
-  'Language I English':             { en: 'Part II – Lang I (English)', hi: 'भाग II – भाषा I' },
-  'Language II English':            { en: 'Part III – Lang II (English)', hi: 'भाग III – भाषा II अंग्रेज़ी' },
-  'Language II Hindi':              { en: 'Part III – Lang II (Hindi)',   hi: 'भाग III – भाषा II हिन्दी' },
-  'Language II Urdu':               { en: 'Part III – Lang II (Urdu)',    hi: 'भाग III – भाषा II उर्दू' },
-  'Language II Sanskrit':           { en: 'Part III – Lang II (Sanskrit)', hi: 'भाग III – भाषा II संस्कृत' },
-  'Mathematics':                    { en: 'Part IV – Mathematics',   hi: 'भाग IV – गणित' },
-  'Environmental Studies':          { en: 'Part V – EVS',            hi: 'भाग V – पर्यावरण' },
-  'Science':                        { en: 'Part IV – Science',       hi: 'भाग IV – विज्ञान' },
-  'Maths and Science':              { en: 'Part IV – Maths & Science', hi: 'भाग IV – गणित व विज्ञान' },
-  'Social Studies':                 { en: 'Part IV – Social Studies', hi: 'भाग IV – सामाजिक अध्ययन' },
-  'Language Hindi':                 { en: 'Part IV – Language (Hindi)', hi: 'भाग IV – भाषा हिन्दी' },
-  'Language English':               { en: 'Part IV – Language (English)', hi: 'भाग IV – भाषा अंग्रेज़ी' },
-  'Language Sanskrit':              { en: 'Part IV – Language (Sanskrit)', hi: 'भाग IV – भाषा संस्कृत' },
-  'Language Urdu':                  { en: 'Part IV – Language (Urdu)', hi: 'भाग IV – भाषा उर्दू' },
+  'Child Development and Pedagogy': { en: 'Child Dev. & Pedagogy',  hi: 'बाल विकास एवं शिक्षाशास्त्र' },
+  'Language I Hindi':               { en: 'Language I – Hindi',     hi: 'भाषा I – हिन्दी'              },
+  'Language I English':             { en: 'Language I – English',   hi: 'भाषा I – अंग्रेज़ी'           },
+  'Language II English':            { en: 'Language II – English',  hi: 'भाषा II – अंग्रेज़ी'          },
+  'Language II Hindi':              { en: 'Language II – Hindi',    hi: 'भाषा II – हिन्दी'             },
+  'Language II Urdu':               { en: 'Language II – Urdu',     hi: 'भाषा II – उर्दू'              },
+  'Language II Sanskrit':           { en: 'Language II – Sanskrit', hi: 'भाषा II – संस्कृत'            },
+  'Mathematics':                    { en: 'Mathematics',            hi: 'गणित'                         },
+  'Environmental Studies':          { en: 'Env. Studies (EVS)',     hi: 'पर्यावरण अध्ययन'              },
+  'Science':                        { en: 'Science',                hi: 'विज्ञान'                      },
+  'Social Studies':                 { en: 'Social Studies',         hi: 'सामाजिक अध्ययन'               },
+  'Language Hindi':                 { en: 'Language – Hindi',       hi: 'भाषा – हिन्दी'                },
+  'Language English':               { en: 'Language – English',     hi: 'भाषा – अंग्रेज़ी'             },
+  'Language Sanskrit':              { en: 'Language – Sanskrit',    hi: 'भाषा – संस्कृत'               },
+  'Language Urdu':                  { en: 'Language – Urdu',        hi: 'भाषा – उर्दू'                 },
 }
 
 interface Section { subject: string; startIdx: number; endIdx: number; label: { en: string; hi: string } }
@@ -85,17 +84,18 @@ function saveSeenIds(key: string, ids: string[]) {
 
 interface ExamEngineProps {
   examType: string
-  subject: string       // used as display label + API param
-  subjects?: string     // comma-separated for multi-subject (full exam)
+  subject: string
+  subjects?: string
   limit: string
   backPath: string
-  timerMinutes?: number // if set, shows countdown and auto-submits
-  year?: string         // for PYQ mode
-  ordered?: boolean     // preserve original paper sequence, skip seen-filter
+  timerMinutes?: number
+  year?: string
+  ordered?: boolean
+  sortBy?: string  // 'subject' → group by subject (Full Mock), omit for PYQ/practice
 }
 
 export default function ExamEngine({
-  examType, subject, subjects, limit, backPath, timerMinutes, year, ordered
+  examType, subject, subjects, limit, backPath, timerMinutes, year, ordered, sortBy
 }: ExamEngineProps) {
   const router = useRouter()
   const [questions, setQuestions] = useState<any[]>([])
@@ -115,11 +115,12 @@ export default function ExamEngine({
           : `subject=${encodeURIComponent(subject)}`
         const yearParam = year ? `&year=${year}` : ''
         const orderedParam = ordered ? '&ordered=true' : ''
+        const sortParam = sortBy ? `&sort=${sortBy}` : ''
 
-        if (ordered) {
-          // Sequential mode (PYQ / full mock): fetch in paper order, no seen-filter
+        if (ordered || sortBy) {
+          // Sequential / Full Mock mode: no seen-filter, return in deterministic order
           const res = await fetch(
-            `/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${limit}${yearParam}${orderedParam}`
+            `/api/exams/generate?exam_type=${examType}&${subjectsParam}&limit=${limit}${yearParam}${orderedParam}${sortParam}`
           )
           const data = await res.json()
           setQuestions(data.questions || [])
@@ -220,8 +221,8 @@ export default function ExamEngine({
   const hasHindi = !!(q.text_hi || q.options_hi)
   const isLowTime = timeLeft !== null && timeLeft < 300
 
-  // Section detection (only in ordered/PYQ mode)
-  const sections: Section[] = ordered ? buildSections(questions) : []
+  // Section detection (ordered PYQ or subject-sorted Full Mock)
+  const sections: Section[] = (ordered || !!sortBy) ? buildSections(questions) : []
   const currentSection = sections.find(s => current >= s.startIdx && current <= s.endIdx)
 
   return (
@@ -301,7 +302,7 @@ export default function ExamEngine({
       </div>
 
       {/* ── Section / Part tab bar (ordered mode only) ── */}
-      {ordered && sections.length > 1 && (
+      {(ordered || !!sortBy) && sections.length > 1 && (
         <div className="border-b border-white/[0.06] bg-slate-900/60 overflow-x-auto">
           <div className="flex min-w-max px-4 md:px-8">
             {sections.map((sec, si) => {
@@ -345,7 +346,7 @@ export default function ExamEngine({
             </div>
 
             {/* Section divider — shown at first Q of each part */}
-            {ordered && currentSection && current === currentSection.startIdx && (
+            {(ordered || !!sortBy) && currentSection && current === currentSection.startIdx && (
               <div className="mb-6 border border-white/[0.08] rounded-xl overflow-hidden">
                 <div className="bg-white/[0.04] px-4 py-3 flex items-center justify-between">
                   <div>

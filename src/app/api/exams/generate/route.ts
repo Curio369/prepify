@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
 
     const ordered = searchParams.get('ordered') === 'true'
+    // sort=subject: groups all questions by subject name then by upload order
+    // Used for Full Mock exams (no year filter) to avoid cross-year interleaving
+    const sortBySubject = searchParams.get('sort') === 'subject'
 
     let query = supabase.from('questions').select('*').eq('exam_type', examType);
 
@@ -32,14 +35,19 @@ export async function GET(req: NextRequest) {
 
     if (year) query = query.eq('year', year)
 
-    // Preserve original paper order for PYQ/sequential modes
-    if (ordered) query = query.order('created_at', { ascending: true })
+    if (sortBySubject) {
+      // Group by subject alphabetically, then by upload order within each subject
+      query = query.order('subject', { ascending: true }).order('created_at', { ascending: true })
+    } else if (ordered) {
+      // PYQ mode: strict upload order preserves original paper sequence
+      query = query.order('created_at', { ascending: true })
+    }
 
     const { data, error } = await query.limit(limit);
     if (error) throw error;
     if (!data || data.length === 0) return NextResponse.json({ questions: [] });
 
-    const selected = ordered ? data : shuffle(data).slice(0, limit);
+    const selected = (ordered || sortBySubject) ? data : shuffle(data).slice(0, limit);
     return NextResponse.json({ questions: selected });
   } catch (err: any) {
     console.error('Generate Exam Error:', err);

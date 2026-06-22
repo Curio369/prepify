@@ -31,42 +31,48 @@ const CHEER_HI = [
   "बहुत अच्छा! निरंतरता ही सफलता की कुंजी है। 🏆",
 ]
 
-function Confetti() {
-  const colors = ['#10b981','#f59e0b','#3b82f6','#ec4899','#8b5cf6','#f97316']
-  const pieces = Array.from({ length: 48 }, (_, i) => ({
-    id: i,
-    color: colors[i % colors.length],
-    left: `${Math.random() * 100}%`,
-    delay: `${Math.random() * 0.8}s`,
-    duration: `${0.8 + Math.random() * 0.8}s`,
-    size: `${6 + Math.random() * 8}px`,
-    rotate: `${Math.random() * 360}deg`,
-  }))
+function ScoreRing({ pct, language }: { pct: number; language: 'en' | 'hi' }) {
+  const [animated, setAnimated] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 80); return () => clearTimeout(t) }, [])
+
+  const size = 160
+  const stroke = 10
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const dash = animated ? circ * (pct / 100) : 0
+  const gap = circ - dash
+
+  const ringColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444'
+  const textColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400'
+  const label = pct >= 70
+    ? (language === 'hi' ? 'बहुत बढ़िया!' : 'Great job!')
+    : pct >= 40
+    ? (language === 'hi' ? 'और अभ्यास करें' : 'Keep practising')
+    : (language === 'hi' ? 'और मेहनत चाहिए' : 'Needs work')
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
-      {pieces.map(p => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            top: '-20px',
-            left: p.left,
-            width: p.size,
-            height: p.size,
-            backgroundColor: p.color,
-            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
-            transform: `rotate(${p.rotate})`,
-            animation: `confettiFall ${p.duration} ${p.delay} ease-in forwards`,
-          }}
-        />
-      ))}
-      <style>{`
-        @keyframes confettiFall {
-          0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          {/* track */}
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e293b" strokeWidth={stroke} />
+          {/* animated fill */}
+          <circle
+            cx={size/2} cy={size/2} r={r}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${gap}`}
+            style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(0.34,1.2,0.64,1)', filter: `drop-shadow(0 0 6px ${ringColor}88)` }}
+          />
+        </svg>
+        {/* centre text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-4xl font-mono font-black leading-none ${textColor}`}>{pct}<span className="text-xl text-slate-500">%</span></span>
+        </div>
+      </div>
+      <div className="text-slate-400 text-sm mt-3 font-medium">{label}</div>
     </div>
   )
 }
@@ -101,32 +107,48 @@ async function translateToHindi(text: string): Promise<string> {
   return data?.responseData?.translatedText || text
 }
 
-// Shows a DB explanation, auto-translating to Hindi when language='hi'
 function DBExplanation({ text, language }: { text: string; language: 'en' | 'hi' }) {
   const [displayed, setDisplayed] = useState(text)
-  const [translating, setTranslating] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'translating' | 'done' | 'failed'>('idle')
 
   useEffect(() => {
-    if (language !== 'hi') { setDisplayed(text); return }
-    setTranslating(true)
+    if (language !== 'hi') { setDisplayed(text); setStatus('done'); return }
+    setStatus('translating')
     translateToHindi(text)
-      .then(t => setDisplayed(t))
-      .finally(() => setTranslating(false))
+      .then(t => {
+        // MyMemory sometimes returns the original on failure
+        if (t && t !== text) { setDisplayed(t); setStatus('done') }
+        else setStatus('failed')
+      })
+      .catch(() => setStatus('failed'))
   }, [text, language])
+
+  function retryTranslate() {
+    setStatus('translating')
+    translateToHindi(text)
+      .then(t => { setDisplayed(t !== text ? t : text); setStatus('done') })
+      .catch(() => setStatus('failed'))
+  }
 
   return (
     <div className="pl-4 pr-3 py-3 border-l-2 border-emerald-500 bg-slate-900/60 rounded-r-xl">
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
           {language === 'hi' ? 'व्याख्या' : 'Explanation'}
         </div>
-        {language === 'hi' && (
-          <span className="text-[9px] text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">
-            {translating ? 'अनुवाद हो रहा है…' : 'अनुवादित'}
-          </span>
+        {language === 'hi' && status === 'translating' && (
+          <span className="text-[9px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-full animate-pulse">अनुवाद हो रहा है…</span>
+        )}
+        {language === 'hi' && status === 'done' && (
+          <span className="text-[9px] text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">अनुवादित</span>
+        )}
+        {language === 'hi' && status === 'failed' && (
+          <button onClick={retryTranslate} className="text-[9px] text-yellow-500 hover:text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full transition">
+            हिन्दी में देखें ↻
+          </button>
         )}
       </div>
-      <p className={`text-slate-400 text-sm leading-relaxed transition-opacity ${translating ? 'opacity-40' : ''}`}>
+      <p className={`text-slate-400 text-sm leading-relaxed transition-opacity ${status === 'translating' ? 'opacity-40' : ''}`}>
         {displayed}
       </p>
     </div>
@@ -273,8 +295,7 @@ export default function ResultsPage() {
   const router = useRouter()
   const [result, setResult] = useState<Result | null>(null)
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct' | 'skipped'>('all')
-  const [showConfetti, setShowConfetti] = useState(false)
-  const cheerRef = useRef('')
+  const cheerRef = useRef<string>('')
 
   useEffect(() => {
     const raw = localStorage.getItem('prepify_last_result')
@@ -282,12 +303,9 @@ export default function ResultsPage() {
     try {
       const parsed: Result = JSON.parse(raw)
       setResult(parsed)
-      // Trigger confetti & pick cheer message
       const lang = parsed.language || 'en'
       const pool = lang === 'hi' ? CHEER_HI : CHEER_EN
       cheerRef.current = pool[Math.floor(Math.random() * pool.length)]
-      setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 2500)
     } catch { /* malformed */ }
   }, [])
 
@@ -298,7 +316,9 @@ export default function ResultsPage() {
     </div>
   )
 
-  const { questions, answers, examType, language } = result
+  const { questions, answers, examType, language: savedLang } = result
+  // Infer Hindi if not saved (e.g. result from before language tracking was added)
+  const language: 'en' | 'hi' = savedLang ?? (questions.some(q => q.text_hi) ? 'hi' : 'en')
   const correct = questions.filter((q, i) => answers[i] === q.correct_answer).length
   const wrong = questions.filter((q, i) => answers[i] !== undefined && answers[i] !== q.correct_answer).length
   const skipped = questions.filter((_, i) => answers[i] === undefined).length
@@ -324,12 +344,8 @@ export default function ResultsPage() {
     .filter(([, v]) => v.correct / v.total < 0.5)
     .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total))
 
-  const scoreColor = pct >= 70 ? 'text-emerald-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400'
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      {showConfetti && <Confetti />}
-
       <header className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-300 text-sm transition">← Back</button>
         <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">{examType} · Results</span>
@@ -337,23 +353,13 @@ export default function ResultsPage() {
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-8">
 
-        {/* Cheer banner */}
-        {cheerRef.current && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-4 text-center">
-            <p className="text-sm text-emerald-300 font-medium">{cheerRef.current}</p>
-          </div>
-        )}
-
         {/* Score card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6">
-          {/* Score + label */}
-          <div className="flex flex-col items-center mb-5">
-            <div className={`text-7xl font-mono font-black leading-none ${scoreColor}`}>
-              {pct}<span className="text-3xl text-slate-500">%</span>
-            </div>
-            <div className="text-slate-400 text-sm mt-2">
-              {pct >= 70 ? (language === 'hi' ? 'बहुत बढ़िया!' : 'Great job!') : pct >= 40 ? (language === 'hi' ? 'और अभ्यास करें' : 'Keep practising') : (language === 'hi' ? 'और मेहनत चाहिए' : 'Needs work')}
-            </div>
+          <div className="flex flex-col items-center mb-2">
+            <ScoreRing pct={pct} language={language || 'en'} />
+            {cheerRef.current && (
+              <p className="text-sm text-slate-400 text-center mt-4 max-w-xs leading-relaxed">{cheerRef.current}</p>
+            )}
           </div>
 
           {/* Stat pills */}
