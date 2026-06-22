@@ -346,7 +346,7 @@ export default function ResultsPage() {
     .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total))
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 overflow-x-hidden">
       <header className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-300 text-sm transition">← Back</button>
         <div className="flex items-center gap-2 ml-1">

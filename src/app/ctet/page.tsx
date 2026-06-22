@@ -28,7 +28,7 @@ export default function CtetLandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col overflow-x-hidden">
 
       {/* Top nav */}
       <nav className="border-b border-slate-800 px-4 md:px-10 py-4 flex items-center justify-between">

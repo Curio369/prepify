@@ -126,7 +126,7 @@ export default function UptetLandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-slate-100 flex flex-col">
+    <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 flex flex-col overflow-x-hidden">
 
       {/* Top bar */}
       <nav className="px-5 md:px-10 py-4 flex items-center justify-between border-b border-white/5">

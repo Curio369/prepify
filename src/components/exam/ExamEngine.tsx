@@ -237,7 +237,7 @@ export default function ExamEngine({
   const currentSection = sections.find(s => current >= s.startIdx && current <= s.endIdx)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen w-full max-w-full bg-slate-950 text-slate-100 flex flex-col overflow-x-hidden">
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
@@ -314,8 +314,8 @@ export default function ExamEngine({
 
       {/* ── Section / Part tab bar (ordered mode only) ── */}
       {(ordered || !!sortBy) && sections.length > 1 && (
-        <div className="border-b border-white/[0.06] bg-slate-900/60 overflow-x-auto">
-          <div className="flex min-w-max px-4 md:px-8">
+        <div className="border-b border-white/[0.06] bg-slate-900/60 overflow-x-auto w-full">
+          <div className="flex w-max min-w-full px-4 md:px-8">
             {sections.map((sec, si) => {
               const isActive = currentSection?.subject === sec.subject
               const answeredInSection = Array.from({ length: sec.endIdx - sec.startIdx + 1 }, (_, k) => answers[sec.startIdx + k]).filter(Boolean).length
@@ -347,8 +347,8 @@ export default function ExamEngine({
       )}
 
       {/* ── Body ── */}
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto px-4 md:px-10 lg:px-16 pt-5 pb-28 md:pb-12">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-10 lg:px-16 pt-5 pb-28 md:pb-12">
           <div className="w-full max-w-2xl">
 
             {/* Ad slot */}
