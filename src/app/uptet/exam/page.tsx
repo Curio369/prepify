@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ExamEngine from '@/components/exam/ExamEngine'
 
-function CtetExamContent() {
+function UptetExamContent() {
   const s = useSearchParams()
   const subject = s.get('subject') || 'Child Development and Pedagogy'
   const subjects = s.get('subjects') || undefined
@@ -14,11 +14,11 @@ function CtetExamContent() {
 
   return (
     <ExamEngine
-      examType="CTET"
+      examType="UPTET"
       subject={subject}
       subjects={subjects}
       limit={limit}
-      backPath="/ctet"
+      backPath="/uptet"
       timerMinutes={timer}
       year={year}
       ordered={ordered}
@@ -26,14 +26,14 @@ function CtetExamContent() {
   )
 }
 
-export default function CtetExamPage() {
+export default function UptetExamPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-emerald-400 text-sm font-bold font-mono animate-pulse">Loading...</div>
       </div>
     }>
-      <CtetExamContent />
+      <UptetExamContent />
     </Suspense>
   )
 }

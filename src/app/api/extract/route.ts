@@ -59,7 +59,7 @@ Each question must follow this exact format:
   "explanation": "Generate a clear, step-by-step solution or explanation for this question in English. Do not leave this blank.",
   "diagramBox": [ymin, xmin, ymax, xmax],
   "fullImageMode": false,
-  "subject": "Child Development / Math / EVS / Science / English / Hindi / Social Science / Physics / Chemistry / Biology / General",
+  "subject": "Child Development / Math / EVS / Science / English / Hindi / Sanskrit / Social Science / Physics / Chemistry / Biology / General",
   "topic": "specific topic within the subject",
   "difficulty": "easy / medium / hard"
 }
