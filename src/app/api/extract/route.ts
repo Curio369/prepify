@@ -2,36 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
 import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+import { getServerUser } from '@/lib/supabase-server'
 
-// const ai = new GoogleGenAI({
-//   vertexai: true,
-//   project: 'green-radius-464018-v2',
-//   location: 'global',
-//   googleAuthOptions: {
-//     credentials: {
-//       client_email: process.env.GCP_CLIENT_EMAIL,
-//       private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-//     }
-//   }
-// });
-// const ai = new GoogleGenAI({
-//   vertexai: true,
-//   project: 'green-radius-464018-v2',
-//   location: 'global',
-//   // By omitting googleAuthOptions, the SDK automatically uses your local credentials (ADC)
-//   // NOTE: This does NOT work on Vercel — use the credentials block below instead
-// });
+// Plain client for storage/DB writes — no cookie session needed here
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+// Use service account creds on Vercel; fall back to ADC (gcloud auth) locally
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
   location: 'global',
-  googleAuthOptions: {
-    credentials: {
-      client_email: process.env.GCP_CLIENT_EMAIL,
-      private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  ...(process.env.GCP_CLIENT_EMAIL ? {
+    googleAuthOptions: {
+      credentials: {
+        client_email: process.env.GCP_CLIENT_EMAIL,
+        private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }
     }
-  }
+  } : {})
 });
 
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
@@ -109,6 +101,12 @@ Cross-question box accuracy (CRITICAL):
 `
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard: verify user is logged in before spending any tokens ──
+  const user = await getServerUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 })
+  }
+
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File

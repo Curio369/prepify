@@ -25,6 +25,45 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// Map subject names → Part label (bilingual, matching real paper format)
+const PART_LABELS: Record<string, { en: string; hi: string }> = {
+  'Child Development and Pedagogy': { en: 'Part I – CDP',         hi: 'भाग I – बाल विकास' },
+  'Language I Hindi':               { en: 'Part II – Lang I (Hindi)',  hi: 'भाग II – भाषा I हिन्दी' },
+  'Language I English':             { en: 'Part II – Lang I (English)', hi: 'भाग II – भाषा I' },
+  'Language II English':            { en: 'Part III – Lang II (English)', hi: 'भाग III – भाषा II अंग्रेज़ी' },
+  'Language II Hindi':              { en: 'Part III – Lang II (Hindi)',   hi: 'भाग III – भाषा II हिन्दी' },
+  'Language II Urdu':               { en: 'Part III – Lang II (Urdu)',    hi: 'भाग III – भाषा II उर्दू' },
+  'Language II Sanskrit':           { en: 'Part III – Lang II (Sanskrit)', hi: 'भाग III – भाषा II संस्कृत' },
+  'Mathematics':                    { en: 'Part IV – Mathematics',   hi: 'भाग IV – गणित' },
+  'Environmental Studies':          { en: 'Part V – EVS',            hi: 'भाग V – पर्यावरण' },
+  'Science':                        { en: 'Part IV – Science',       hi: 'भाग IV – विज्ञान' },
+  'Maths and Science':              { en: 'Part IV – Maths & Science', hi: 'भाग IV – गणित व विज्ञान' },
+  'Social Studies':                 { en: 'Part IV – Social Studies', hi: 'भाग IV – सामाजिक अध्ययन' },
+  'Language Hindi':                 { en: 'Part IV – Language (Hindi)', hi: 'भाग IV – भाषा हिन्दी' },
+  'Language English':               { en: 'Part IV – Language (English)', hi: 'भाग IV – भाषा अंग्रेज़ी' },
+  'Language Sanskrit':              { en: 'Part IV – Language (Sanskrit)', hi: 'भाग IV – भाषा संस्कृत' },
+  'Language Urdu':                  { en: 'Part IV – Language (Urdu)', hi: 'भाग IV – भाषा उर्दू' },
+}
+
+interface Section { subject: string; startIdx: number; endIdx: number; label: { en: string; hi: string } }
+
+function buildSections(questions: any[]): Section[] {
+  const sections: Section[] = []
+  let i = 0
+  while (i < questions.length) {
+    const subj = questions[i].subject || 'General'
+    const start = i
+    while (i < questions.length && questions[i].subject === subj) i++
+    sections.push({
+      subject: subj,
+      startIdx: start,
+      endIdx: i - 1,
+      label: PART_LABELS[subj] || { en: subj, hi: subj },
+    })
+  }
+  return sections
+}
+
 function seenKey(examType: string, subject: string) {
   return `seen_${examType}_${subject}`.replace(/\s+/g, '_')
 }
@@ -172,6 +211,10 @@ export default function ExamEngine({
   const hasHindi = !!(q.text_hi || q.options_hi)
   const isLowTime = timeLeft !== null && timeLeft < 300
 
+  // Section detection (only in ordered/PYQ mode)
+  const sections: Section[] = ordered ? buildSections(questions) : []
+  const currentSection = sections.find(s => current >= s.startIdx && current <= s.endIdx)
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
 
@@ -248,6 +291,40 @@ export default function ExamEngine({
         )}
       </div>
 
+      {/* ── Section / Part tab bar (ordered mode only) ── */}
+      {ordered && sections.length > 1 && (
+        <div className="border-b border-white/[0.06] bg-slate-900/60 overflow-x-auto">
+          <div className="flex min-w-max px-4 md:px-8">
+            {sections.map((sec, si) => {
+              const isActive = currentSection?.subject === sec.subject
+              const answeredInSection = Array.from({ length: sec.endIdx - sec.startIdx + 1 }, (_, k) => answers[sec.startIdx + k]).filter(Boolean).length
+              const total = sec.endIdx - sec.startIdx + 1
+              return (
+                <button
+                  key={sec.subject}
+                  onClick={() => setCurrent(sec.startIdx)}
+                  className={`relative flex flex-col items-start px-4 py-2.5 text-left transition-all shrink-0 border-b-2 ${
+                    isActive
+                      ? 'border-emerald-400 text-slate-100'
+                      : 'border-transparent text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mb-0.5">
+                    Part {si + 1}
+                  </span>
+                  <span className="text-xs font-semibold whitespace-nowrap">
+                    {language === 'hi' ? sec.label.hi : sec.label.en}
+                  </span>
+                  <span className={`text-[10px] mt-0.5 font-mono ${answeredInSection === total ? 'text-emerald-400' : 'text-slate-600'}`}>
+                    {answeredInSection}/{total}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto px-4 md:px-10 lg:px-16 pt-5 pb-28 md:pb-12">
@@ -257,6 +334,31 @@ export default function ExamEngine({
             <div className="w-full h-14 md:h-16 bg-slate-900 border border-dashed border-slate-800 rounded-xl mb-6 flex items-center justify-center text-[10px] text-slate-600 tracking-wider uppercase">
               Advertisement
             </div>
+
+            {/* Section divider — shown at first Q of each part */}
+            {ordered && currentSection && current === currentSection.startIdx && (
+              <div className="mb-6 border border-white/[0.08] rounded-xl overflow-hidden">
+                <div className="bg-white/[0.04] px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-0.5">
+                      भाग / Part {sections.findIndex(s => s.subject === currentSection.subject) + 1}
+                    </div>
+                    <div className="text-sm font-bold text-slate-100">
+                      {currentSection.label.hi}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {currentSection.label.en}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-mono font-black text-slate-100">
+                      {currentSection.endIdx - currentSection.startIdx + 1}
+                    </div>
+                    <div className="text-[10px] text-slate-600 uppercase tracking-wider">Questions</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Question */}
             <div className="mb-5">
