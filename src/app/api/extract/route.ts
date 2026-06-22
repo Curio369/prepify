@@ -4,16 +4,22 @@ import { cropDiagram } from '@/lib/imageProcessor'
 import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 import { supabase } from '@/lib/supabase'
 
+// const ai = new GoogleGenAI({
+//   vertexai: true,
+//   project: 'green-radius-464018-v2',
+//   location: 'global',
+//   googleAuthOptions: {
+//     credentials: {
+//       client_email: process.env.GCP_CLIENT_EMAIL,
+//       private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+//     }
+//   }
+// });
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'green-radius-464018-v2',
-  location: 'global',
-  googleAuthOptions: {
-    credentials: {
-      client_email: process.env.GCP_CLIENT_EMAIL,
-      private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }
-  }
+  location: 'global', // Use a specific region like us-central1 or asia-south1
+  // By omitting googleAuthOptions, the SDK automatically uses your local credentials
 });
 
 const prompt = `You are analyzing a DPP (Daily Practice Paper) or test paper image.
@@ -128,7 +134,7 @@ export async function POST(req: NextRequest) {
       });
 
       const raw = response.text || "[]"
-      
+
       let questions = []
       try {
         questions = JSON.parse(raw)
@@ -158,57 +164,57 @@ export async function POST(req: NextRequest) {
 
           // If a diagram was cropped, upload it to Supabase Storage
           if (q.diagramBase64) {
-        try {
-          const buffer = Buffer.from(q.diagramBase64, 'base64');
-          const fileName = `${examType.toLowerCase()}/${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+            try {
+              const buffer = Buffer.from(q.diagramBase64, 'base64');
+              const fileName = `${examType.toLowerCase()}/${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
 
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('dpp_images')
-            .upload(fileName, buffer, {
-              contentType: 'image/webp',
-              upsert: true,
-            });
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('dpp_images')
+                .upload(fileName, buffer, {
+                  contentType: 'image/webp',
+                  upsert: true,
+                });
 
-          if (uploadError) {
-            console.error('Storage Upload Error:', uploadError);
-          } else if (uploadData) {
-            // Retrieve the public URL for the uploaded file
-            const { data: urlData } = supabase.storage
-              .from('dpp_images')
-              .getPublicUrl(fileName);
+              if (uploadError) {
+                console.error('Storage Upload Error:', uploadError);
+              } else if (uploadData) {
+                // Retrieve the public URL for the uploaded file
+                const { data: urlData } = supabase.storage
+                  .from('dpp_images')
+                  .getPublicUrl(fileName);
 
-            publicUrl = urlData?.publicUrl || null;
+                publicUrl = urlData?.publicUrl || null;
+              }
+            } catch (uploadImgErr) {
+              console.error('Failed to process storage upload:', uploadImgErr);
+            }
           }
-        } catch (uploadImgErr) {
-          console.error('Failed to process storage upload:', uploadImgErr);
-        }
-      }
 
-      return {
-        text_en: q.text_en || '',
-        text_hi: q.text_hi || '',
-        options_en: q.options_en || {},
-        options_hi: q.options_hi || {},
-        correct_answer: q.correct || '',
-        explanation: q.explanation || null,
-        exam_type: examType,
-        paper: paper,
-        subject: q.subject || 'General',
-        topic: q.topic || null,
-        difficulty: q.difficulty || 'medium',
-        source: source,
-        has_latex: ((q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
-        has_diagram: !!publicUrl,
-        diagram_url: publicUrl
-      };
-    })
-  );
+          return {
+            text_en: q.text_en || '',
+            text_hi: q.text_hi || '',
+            options_en: q.options_en || {},
+            options_hi: q.options_hi || {},
+            correct_answer: q.correct || '',
+            explanation: q.explanation || null,
+            exam_type: examType,
+            paper: paper,
+            subject: q.subject || 'General',
+            topic: q.topic || null,
+            difficulty: q.difficulty || 'medium',
+            source: source,
+            has_latex: ((q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
+            has_diagram: !!publicUrl,
+            diagram_url: publicUrl
+          };
+        })
+      );
 
-  const { error } = await supabase.from('questions').insert(rows);
-  if (error) console.error('Supabase save error:', error);
-  else console.log(`Saved ${rows.length} bilingual questions with images to DB`);
-}
-    return NextResponse.json({ 
+      const { error } = await supabase.from('questions').insert(rows);
+      if (error) console.error('Supabase save error:', error);
+      else console.log(`Saved ${rows.length} bilingual questions with images to DB`);
+    }
+    return NextResponse.json({
       questions: allEnrichedQuestions,
       saved_to_db: saveToDb && allEnrichedQuestions.length > 0
     })
