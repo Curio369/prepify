@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -28,6 +27,9 @@ export const metadata: Metadata = {
     ],
     apple: '/Logos/logo-icon_dark-Photoroom.png',
   },
+  other: {
+    'google-adsense-account': 'ca-pub-3612987200657403',
+  },
 };
 
 export const viewport: Viewport = {
@@ -46,15 +48,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
-      <head>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3612987200657403"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+<body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
