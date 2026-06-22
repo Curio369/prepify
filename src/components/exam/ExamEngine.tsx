@@ -157,10 +157,19 @@ export default function ExamEngine({
   // ── Countdown timer ──
   const handleFinish = useCallback(() => {
     setIsSubmitted(true)
-    // Save seen IDs to localStorage
     const key = seenKey(examType, subjects || subject)
     saveSeenIds(key, questions.map(q => String(q.id)))
-  }, [examType, subject, subjects, questions])
+    // Save full result for the results/report page
+    localStorage.setItem('prepify_last_result', JSON.stringify({
+      questions,
+      answers,
+      examType,
+      subject: subjects || subject,
+      timerMinutes,
+      language,
+      savedAt: Date.now(),
+    }))
+  }, [examType, subject, subjects, questions, answers, timerMinutes, language])
 
   useEffect(() => {
     if (timeLeft === null || isSubmitted) return
@@ -449,7 +458,10 @@ export default function ExamEngine({
                   {score()}<span className="text-lg text-slate-600 font-normal"> / {questions.length}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-2">{Math.round((score() / questions.length) * 100)}% accuracy</p>
-                <button onClick={() => router.push(backPath)} className="mt-5 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold py-3 rounded-xl transition">
+                <button onClick={() => router.push('/results')} className="mt-5 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold py-3 rounded-xl transition">
+                  View Full Report →
+                </button>
+                <button onClick={() => router.push(backPath)} className="mt-2 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold py-3 rounded-xl transition">
                   Try Another
                 </button>
               </div>
