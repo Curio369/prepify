@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useEffect, useState, useRef } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -348,7 +349,11 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-300 text-sm transition">← Back</button>
-        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">{examType} · Results</span>
+        <div className="flex items-center gap-2 ml-1">
+          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={22} height={22} className="shrink-0" />
+          <span className="text-slate-100 font-bold text-sm tracking-tight">Prepify</span>
+        </div>
+        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">· {examType} Results</span>
       </header>
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-8">

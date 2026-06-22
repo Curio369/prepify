@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 // ── Static subject sets ──────────────────────────────────────────────────────
@@ -63,6 +64,9 @@ export default function UptetLandingPage() {
   const [mode, setMode]   = useState<Mode>('subject')
   const [loading, setLoading] = useState(false)
 
+  // Mode: learning = instant reveal, exam = submit then analyse
+  const [practiceMode, setPracticeMode] = useState<'learning' | 'exam'>('exam')
+
   // Topic Practice
   const [selectedSubject, setSelectedSubject] = useState('Child Development and Pedagogy')
   const [questionCount, setQuestionCount]     = useState(10)
@@ -100,7 +104,7 @@ export default function UptetLandingPage() {
     }
     setLoading(true)
     if (mode === 'subject') {
-      router.push(`/uptet/exam?subject=${encodeURIComponent(selectedSubject)}&limit=${questionCount}`)
+      router.push(`/uptet/exam?subject=${encodeURIComponent(selectedSubject)}&limit=${questionCount}&mode=${practiceMode}`)
     } else if (mode === 'full') {
       const subjects = buildSubjects(paper, langII, p2Optional)
       // sort=subject groups questions by subject (fixes cross-year interleaving)
@@ -127,7 +131,8 @@ export default function UptetLandingPage() {
       {/* Top bar */}
       <nav className="px-5 md:px-10 py-4 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-3">
-          <span className="text-emerald-400 font-bold tracking-widest text-sm">PREPIFY</span>
+          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={34} height={34} className="shrink-0" />
+          <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
           <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ UPTET</span>
         </div>
         <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition">← Home</a>
@@ -223,6 +228,26 @@ export default function UptetLandingPage() {
                             : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20'
                         }`}
                       >{n}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Practice Mode</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'learning', label: '📖 Learning', sub: 'See answer instantly' },
+                      { value: 'exam',     label: '🎯 Exam',     sub: 'Submit & analyse'    },
+                    ] as const).map(opt => (
+                      <button key={opt.value} onClick={() => setPracticeMode(opt.value)}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition text-left ${
+                          practiceMode === opt.value
+                            ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300'
+                            : 'bg-transparent border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                        }`}
+                      >
+                        <div>{opt.label}</div>
+                        <div className="text-[10px] font-normal opacity-70 mt-0.5">{opt.sub}</div>
+                      </button>
                     ))}
                   </div>
                 </div>

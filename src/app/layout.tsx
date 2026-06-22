@@ -13,8 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prepify — Exam Practice Platform",
+  title: "Prepify — NTA Interface. Real Experience.",
   description: "AI-powered mock tests for JEE, NEET, CTET and UPTET with NTA-like interface.",
+  icons: {
+    icon: [
+      { url: '/Logos/logo-icon_dark-Photoroom.png', type: 'image/png' },
+    ],
+    apple: '/Logos/logo-icon_dark-Photoroom.png',
+  },
 };
 
 export const viewport: Viewport = {

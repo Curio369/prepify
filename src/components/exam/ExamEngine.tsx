@@ -91,11 +91,12 @@ interface ExamEngineProps {
   timerMinutes?: number
   year?: string
   ordered?: boolean
-  sortBy?: string  // 'subject' → group by subject (Full Mock), omit for PYQ/practice
+  sortBy?: string
+  mode?: 'learning' | 'exam'  // learning = instant reveal, exam = submit then analyse
 }
 
 export default function ExamEngine({
-  examType, subject, subjects, limit, backPath, timerMinutes, year, ordered, sortBy
+  examType, subject, subjects, limit, backPath, timerMinutes, year, ordered, sortBy, mode = 'exam'
 }: ExamEngineProps) {
   const router = useRouter()
   const [questions, setQuestions] = useState<any[]>([])
@@ -192,10 +193,20 @@ export default function ExamEngine({
     return c
   }
 
+  // In learning mode: lock this question immediately after first answer (instant reveal)
+  const [revealedQuestions, setRevealedQuestions] = useState<Set<number>>(new Set())
+
   const handleSelectOption = (opt: string) => {
     if (isSubmitted) return
+    if (mode === 'learning' && revealedQuestions.has(current)) return // locked after first pick
     setAnswers(prev => ({ ...prev, [current]: opt }))
+    if (mode === 'learning') {
+      setRevealedQuestions(prev => new Set([...prev, current]))
+    }
   }
+
+  // In learning mode, treat current question as "submitted" if revealed
+  const isCurrentRevealed = mode === 'learning' && revealedQuestions.has(current)
 
   if (loading) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -406,7 +417,7 @@ export default function ExamEngine({
                 let badge = 'border-slate-700 text-slate-500'
                 let badgeLabel: React.ReactNode = opt
 
-                if (isSubmitted) {
+                if (isSubmitted || isCurrentRevealed) {
                   if (isCorrect) {
                     container = 'border-emerald-500/40 bg-emerald-500/10 cursor-default'
                     text = 'text-emerald-300 font-medium'
@@ -430,7 +441,7 @@ export default function ExamEngine({
                 return (
                   <button
                     key={opt}
-                    disabled={isSubmitted}
+                    disabled={isSubmitted || isCurrentRevealed}
                     onClick={() => handleSelectOption(opt)}
                     className={`w-full text-left p-3.5 md:p-4 rounded-xl border transition-all duration-150 flex items-center gap-3 text-sm ${container}`}
                   >
@@ -444,10 +455,10 @@ export default function ExamEngine({
             </div>
 
             {/* Explanation */}
-            {isSubmitted && q.explanation && (
+            {(isSubmitted || isCurrentRevealed) && q.explanation && (
               <div className="mt-5 pl-4 pr-3 py-3.5 border-l-2 border-emerald-500 bg-slate-900/70 rounded-r-xl">
                 <div className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">✨ Explanation</div>
-                <p className="text-slate-400 text-sm leading-relaxed">{q.explanation}</p>
+                <div className="text-slate-400 text-sm leading-relaxed">{renderText(q.explanation)}</div>
               </div>
             )}
 
@@ -534,28 +545,32 @@ export default function ExamEngine({
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 flex justify-between items-center z-30">
-        <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
-          className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition">
-          ← Prev
-        </button>
-        {!isSubmitted ? (
-          <button
-            onClick={() => current === questions.length - 1 ? handleFinish() : setCurrent(c => c + 1)}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow transition ${
-              current === questions.length - 1
-                ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                : 'bg-white text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            {current === questions.length - 1 ? 'Finish & Score' : 'Next →'}
-          </button>
-        ) : (
-          <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 z-30">
+        <div className="flex justify-between items-center gap-2">
+          <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
             className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition">
-            Next Review →
+            ← Prev
           </button>
-        )}
+          {!isSubmitted && (
+            <button onClick={handleFinish}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 transition">
+              Submit
+            </button>
+          )}
+          {!isSubmitted ? (
+            <button
+              onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-slate-950 hover:bg-slate-200 disabled:opacity-30 transition"
+            >
+              Next →
+            </button>
+          ) : (
+            <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-950 disabled:opacity-30 transition">
+              Next Review →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

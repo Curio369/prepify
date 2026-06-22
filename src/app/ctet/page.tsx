@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 const CTET_SUBJECTS = [
@@ -31,8 +32,12 @@ export default function CtetLandingPage() {
 
       {/* Top nav */}
       <nav className="border-b border-slate-800 px-4 md:px-10 py-4 flex items-center justify-between">
-        <span className="text-emerald-400 font-bold tracking-wider text-sm">PREPIFY</span>
-        <span className="text-xs text-slate-600 font-mono">CTET Practice</span>
+        <div className="flex items-center gap-2.5">
+          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={28} height={28} className="shrink-0" />
+          <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
+          <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ CTET</span>
+        </div>
+        <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition">← Home</a>
       </nav>
 
       {/* Page body */}
