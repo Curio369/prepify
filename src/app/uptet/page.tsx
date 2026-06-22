@@ -131,7 +131,7 @@ export default function UptetLandingPage() {
       {/* Top bar */}
       <nav className="px-5 md:px-10 py-4 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-3">
-          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={34} height={34} className="shrink-0" />
+          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={34} height={34} style={{ width: 34, height: 34, flexShrink: 0 }} />
           <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
           <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ UPTET</span>
         </div>

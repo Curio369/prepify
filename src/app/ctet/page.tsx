@@ -33,7 +33,7 @@ export default function CtetLandingPage() {
       {/* Top nav */}
       <nav className="border-b border-slate-800 px-4 md:px-10 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={28} height={28} className="shrink-0" />
+          <Image src="/Logos/logo-icon_light-Photoroom.png" alt="Prepify" width={28} height={28} style={{ width: 28, height: 28, flexShrink: 0 }} />
           <span className="text-slate-100 font-bold tracking-tight text-sm">Prepify</span>
           <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider hidden sm:block">/ CTET</span>
         </div>
