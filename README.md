@@ -96,7 +96,7 @@ flowchart TD
     D --> E{File Type?}
     E -->|Image| F[JPEG/PNG/WebP]
     E -->|PDF| G[PDF → page images]
-    F --> H[/api/extract Route]
+    F --> H["/api/extract Route"]
     G --> H
     H --> I[Send to Gemini Flash Vision]
     I --> J[AI reads every question, both languages]
@@ -156,23 +156,23 @@ A **separate vertical** for candidates of India's teacher-eligibility tests (UPT
 
 ```mermaid
 flowchart LR
-    A([👤 Candidate]) --> B[/uptet or /ctet]
+    A([👤 Candidate]) --> B["/uptet or /ctet"]
     B --> C{Mode}
     C -->|Topic| D[Pick subject]
-    C -->|Full Mock| E[Pick Paper I/II + Lang II + stream]
+    C -->|Full Mock| E["Pick Paper I/II + Lang II + stream"]
     C -->|PYQ| F[Pick year + paper]
-    D --> G[/api/exams/generate]
+    D --> G["/api/exams/generate"]
     E --> G
     F --> G
     G --> H[(Supabase questions)]
     H --> I{Sort strategy}
     I -->|Topic| J[Shuffle subject pool]
-    I -->|Full Mock| K[Group by subject → shuffle each section]
+    I -->|Full Mock| K["Group by subject → shuffle each section"]
     I -->|PYQ| L[Preserve original order]
-    J --> M[Real exam interface]
+    J --> M[Exam interface]
     K --> M
     L --> M
-    M --> N[Score + analysis]
+    M --> N["Score + analysis"]
 
     style A fill:#0891B2,color:#fff
     style G fill:#4285F4,color:#fff
@@ -188,34 +188,34 @@ Both segments sit on the same foundation. The difference is **where questions or
 ```mermaid
 graph TB
     subgraph CLIENT ["🌐 Client (Browser)"]
-        LP[Landing /]
-        UP[Upload /upload  →  🅰️]
-        UPTET[/uptet · /ctet  →  🅱️/]
-        EP[Exam UI /exam · /uptet/exam · /ctet/exam]
-        RP[Results /results]
+        LP["Landing /"]
+        UP["Upload /upload (A)"]
+        UPTET["/uptet · /ctet (B)"]
+        EP["Exam UI: /exam · /uptet/exam · /ctet/exam"]
+        RP["Results /results"]
     end
 
     subgraph SERVER ["⚡ Next.js Server (App Router)"]
-        EX[/api/extract  🅰️ live extraction/]
-        GEN[/api/exams/generate  🅱️ bank → exam/]
-        SOL[/api/solutions · /api/explain]
-        QS[/api/questions · /api/questions/save/]
-        CB[/auth/callback  OAuth/]
+        EX["(A) /api/extract — live extraction"]
+        GEN["(B) /api/exams/generate — bank to exam"]
+        SOL["/api/solutions · /api/explain"]
+        QS["/api/questions · /api/questions/save"]
+        CB["/auth/callback — OAuth"]
     end
 
     subgraph AI ["🤖 AI Layer"]
-        GV[Gemini Flash — Vision + Reasoning via Vertex AI]
+        GV["Gemini Flash — Vision + Reasoning via Vertex AI"]
     end
 
     subgraph PROC ["🔧 Processing"]
-        SH[Sharp — diagram cropping]
-        PDF[pdf-to-png-converter — PDF → images]
+        SH["Sharp — diagram cropping"]
+        PDF["pdf-to-png-converter — PDF to images"]
     end
 
     subgraph DB ["💾 Supabase"]
-        PG[(PostgreSQL — questions, profiles)]
-        ST[(Storage — dpp_images)]
-        AUTH[Auth — Google OAuth + RLS]
+        PG[("PostgreSQL — questions, profiles")]
+        ST[("Storage — dpp_images")]
+        AUTH["Auth — Google OAuth + RLS"]
     end
 
     UP -->|POST multipart| EX
