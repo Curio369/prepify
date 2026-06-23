@@ -20,7 +20,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Prepify — Free UPTET & CTET Mock Tests | NTA Interface",
+  title: "Prepify — AI-Powered Prep for UPTET, CTET & Govt Exams",
   description: "Free mock tests for UPTET and CTET with real NTA-like interface. Practice with previous year papers, subject-wise questions and AI explanations. Start for free.",
   keywords: [
     'UPTET mock test', 'CTET mock test', 'UPTET free practice test',
