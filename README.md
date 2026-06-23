@@ -29,10 +29,12 @@ Prepify is **two products under one roof**. They share the same exam engine, aut
 | **Who it's for** | JEE, NEET, NDA & competitive-exam aspirants (teens) | Aspiring government school teachers (UPTET / CTET) |
 | **Where questions come from** | The student **uploads** their own DPP / test paper; AI extracts it live | A **pre-built, curated question bank** (PYQs + topic banks) |
 | **Core magic** | AI vision turns a photo of a paper into a playable exam | Ready-made bilingual mock tests in the real exam pattern |
-| **Interface** | Feels like the real **JEE Main / NEET** screen | Feels like the real **NTA teacher-exam** screen |
+| **Interface** | Shared **timed exam interface** (timer, palette, mark-for-review) | The **same** shared exam interface |
 | **Status** | Main focus, the long-term bet | Built quickly as a standalone vertical; lives at `/uptet` & `/ctet` |
 
-> ⚠️ **These two are intentionally separate.** The DPP Engine is "bring your own paper." The UPTET/CTET vertical is "we already have the papers." They reuse the same exam UI, but the content sources and user journeys are different by design.
+> ⚠️ **These two are intentionally separate.** The DPP Engine is "bring your own paper." The UPTET/CTET vertical is "we already have the papers." They reuse the **same single exam interface** today, but the content sources and user journeys are different by design.
+>
+> 🚧 **Note on the interface:** right now there is **one shared, generic exam interface**. Building **exam-specific interfaces** — a real NTA-style screen for JEE Main / NEET, etc. — is the **next item on the roadmap**, planned right after the UPTET/CTET work. UPTET/CTET do **not** use an NTA interface; they simply use the shared exam interface.
 
 ```
 🅰️  📸 Upload DPP   → 🤖 AI Extracts → 📝 Real Exam UI → 📊 AI Solutions
@@ -80,7 +82,7 @@ Today a student downloads a coaching DPP from a Telegram channel as a PDF/image,
 1. Student **uploads** any coaching DPP or test paper (image or PDF)
 2. AI **extracts** every question, both languages, options, correct answer, subject, topic, difficulty — and a step-by-step solution
 3. Diagrams (physics figures, chemistry structures, biology labels) are **cropped out** and re-attached to their question
-4. Questions **render in a real exam interface** with a countdown timer — a JEE student feels the JEE Main screen, a NEET student feels the NEET screen
+4. Questions **render in a timed exam interface** with a countdown timer, question palette and mark-for-review *(exam-specific NTA-style screens for JEE Main / NEET are on the roadmap)*
 5. On submit, the student gets a **score + instant AI explanations** for every question
 6. Every upload can **feed a crowdsourced question bank** — the platform's content grows by itself
 
@@ -491,6 +493,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key   # server-only, bypasses RLS
 - [x] SEO content pages, sitemap, robots, per-route metadata
 
 ### 🚧 Next
+- [ ] **Exam-specific interfaces** — dedicated NTA-style screens per exam (JEE Main, NEET, …), replacing the single shared interface *(immediate next task, after UPTET/CTET)*
 - [ ] Payment gateway (subscriptions) + upload-limit enforcement
 - [ ] Exam history per user · performance analytics dashboard
 - [ ] Weak-chapter detection → personalized practice sets
@@ -556,6 +559,8 @@ MIT — see [LICENSE](LICENSE).
 
 ## 🙏 Acknowledgments
 
+
+- 🤖 **Claude (Anthropic)** — AI pair-programmer through the build
 - [Google Gemini / Vertex AI](https://ai.google.dev) — vision + reasoning
 - [Supabase](https://supabase.com) — auth, Postgres, storage
 - [KaTeX](https://katex.org) · [Sharp](https://sharp.pixelplumbing.com) · [shadcn/ui](https://ui.shadcn.com)
