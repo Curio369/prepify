@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useRequireAuth } from '@/lib/useRequireAuth'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
 
@@ -21,6 +22,7 @@ function renderText(text: string) {
 type QuestionStatus = 'unattempted' | 'attempted' | 'review' | 'attempted-review'
 
 function ExamContent() {
+  const authed = useRequireAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -115,6 +117,12 @@ function ExamContent() {
     });
     return score;
   }
+
+  if (!authed) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="text-white/40 text-sm font-mono animate-pulse">Checking access...</div>
+    </div>
+  )
 
   if (loading) return (
     <div className="min-h-screen bg-black flex items-center justify-center">

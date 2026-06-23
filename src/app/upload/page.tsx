@@ -1,8 +1,10 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useRequireAuth } from '@/lib/useRequireAuth'
 
 export default function UploadPage() {
+  const authed = useRequireAuth()
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -36,6 +38,12 @@ export default function UploadPage() {
     const f = e.dataTransfer.files[0]
     if (f) setFile(f)
   }
+
+  if (!authed) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="text-white/40 text-sm font-mono animate-pulse">Checking access...</div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">

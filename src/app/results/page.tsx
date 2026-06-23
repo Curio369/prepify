@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import AdBanner from '@/components/ads/AdUnit'
+import { useRequireAuth } from '@/lib/useRequireAuth'
 import { InlineMath, BlockMath } from 'react-katex'
 
 function renderText(text: string) {
@@ -300,6 +301,7 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
 }
 
 export default function ResultsPage() {
+  const authed = useRequireAuth()
   const router = useRouter()
   const [result, setResult] = useState<Result | null>(null)
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct' | 'skipped'>('all')
@@ -318,6 +320,12 @@ export default function ResultsPage() {
       cheerRef.current = pool[Math.floor(Math.random() * pool.length)]
     } catch { /* malformed */ }
   }, [])
+
+  if (!authed) return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500 text-sm font-mono animate-pulse">
+      Checking access...
+    </div>
+  )
 
   if (!result) return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-400 text-sm">
