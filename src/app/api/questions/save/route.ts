@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
+import { getServerUser } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
+  // Auth guard: only signed-in users may insert questions
+  const user = await getServerUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 })
+  }
+
   try {
     const { questions, exam_type, paper, source, year } = await req.json()
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return NextResponse.json({ error: 'No questions provided' }, { status: 400 })
+    }
+    // Cap batch size to prevent a single request flooding the table
+    if (questions.length > 200) {
+      return NextResponse.json({ error: 'Too many questions in one request (max 200)' }, { status: 400 })
+    }
 
     const rows = questions.map((q: any) => ({
       text: q.text,

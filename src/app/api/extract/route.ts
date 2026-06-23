@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
 import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
-import { createClient } from '@supabase/supabase-js'
 import { getServerUser } from '@/lib/supabase-server'
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
-// Plain client for storage/DB writes — no cookie session needed here
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Storage + question inserts run through the service-role client (bypasses RLS).
+// This route is already auth-guarded below, so only signed-in users reach it.
 
 // Use service account creds on Vercel; fall back to ADC (gcloud auth) locally
 const ai = new GoogleGenAI({

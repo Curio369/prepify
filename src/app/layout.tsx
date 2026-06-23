@@ -19,13 +19,33 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Prepify — NTA Interface. Real Experience.",
-  description: "AI-powered mock tests for JEE, NEET, CTET and UPTET with NTA-like interface.",
+  title: "Prepify — Free UPTET & CTET Mock Tests | NTA Interface",
+  description: "Free mock tests for UPTET and CTET with real NTA-like interface. Practice with previous year papers, subject-wise questions and AI explanations. Start for free.",
+  keywords: [
+    'UPTET mock test', 'CTET mock test', 'UPTET free practice test',
+    'CTET free practice test', 'teacher eligibility test', 'NTA mock test',
+    'UPTET 2024', 'CTET 2024', 'TET practice papers',
+  ],
   icons: {
     icon: [
       { url: '/Logos/logo-icon_dark-Photoroom.png', type: 'image/png' },
     ],
     apple: '/Logos/logo-icon_dark-Photoroom.png',
+  },
+  openGraph: {
+    title: 'Prepify — Free UPTET & CTET Mock Tests',
+    description: 'Free mock tests for UPTET and CTET with real NTA-like interface. Practice with PYQs and AI explanations.',
+    url: 'https://curioverse.in',
+    siteName: 'Prepify',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Prepify — Free UPTET & CTET Mock Tests',
+    description: 'Free mock tests for UPTET and CTET with real NTA-like interface.',
+  },
+  alternates: {
+    canonical: 'https://curioverse.in',
   },
   other: {
     'google-adsense-account': 'ca-pub-3612987200657403',
