@@ -2,10 +2,14 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/useRequireAuth'
+import { EXAM_TYPE_TO_SKIN } from '@/lib/examSkins'
+
+const EXAM_TYPES = ['JEE Main', 'NEET', 'CTET', 'UPTET', 'Other'] as const
 
 export default function UploadPage() {
   const authed = useRequireAuth()
   const [file, setFile] = useState<File | null>(null)
+  const [examType, setExamType] = useState<string>('JEE Main')
   const [loading, setLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
@@ -20,11 +24,30 @@ export default function UploadPage() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('save_to_db', 'true')
-      formData.append('exam_type', 'CTET')
+      formData.append('exam_type', examType)
       const res = await fetch('/api/extract', { method: 'POST', body: formData })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
+      const skin = EXAM_TYPE_TO_SKIN[examType] || 'GENERIC'
       localStorage.setItem('questions', JSON.stringify(data.questions))
+      localStorage.setItem('exam_skin', skin)
+
+      // Auto-save to the user's library so they never re-spend tokens on this paper.
+      // Non-blocking: if the library is full or the save fails, the test still runs
+      // from localStorage for this session.
+      try {
+        const defaultName = (file.name?.replace(/\.[^.]+$/, '') || `${examType} Test`).slice(0, 120)
+        const saveRes = await fetch('/api/tests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: defaultName, exam_type: examType, exam_skin: skin, questions: data.questions }),
+        })
+        const saved = await saveRes.json()
+        if (saved.id) localStorage.setItem('current_test_id', saved.id)
+        else localStorage.removeItem('current_test_id')
+        localStorage.setItem('current_test_name', defaultName)
+      } catch { localStorage.removeItem('current_test_id') }
+
       router.push('/exam')
     } catch (e: any) {
       setError(e.message || 'Extraction failed. Try again.')
@@ -62,6 +85,31 @@ export default function UploadPage() {
           <p className="text-white/50 text-lg">
             Image or PDF — any coaching, any format
           </p>
+        </div>
+
+        {/* Exam type selector — picks which interface the paper opens in */}
+        <div className="mb-6">
+          <p className="text-xs text-white/40 mb-2.5 text-center">Which exam is this paper for?</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {EXAM_TYPES.map(t => (
+              <button
+                key={t}
+                onClick={() => setExamType(t)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  examType === t
+                    ? 'bg-white text-black'
+                    : 'bg-white/[0.04] text-white/50 border border-white/10 hover:border-white/30 hover:text-white/80'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          {(examType === 'JEE Main' || examType === 'NEET') && (
+            <p className="text-center text-white/25 text-xs mt-2.5">
+              Opens in the real {examType} (NTA) exam interface
+            </p>
+          )}
         </div>
 
         {/* Drop zone */}

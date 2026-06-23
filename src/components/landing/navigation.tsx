@@ -109,6 +109,9 @@ export function Navigation() {
                     <div className="px-4 py-3 border-b border-foreground/10">
                       <p className="text-xs text-foreground/50 truncate">{user.email}</p>
                     </div>
+                    <a href="/upload" className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 transition">Upload Paper</a>
+                    <a href="/library" className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 transition">My Library</a>
+                    <a href="/tracker" className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 transition">Score Tracker</a>
                     <a href="/uptet" className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 transition">UPTET Practice</a>
                     <a href="/ctet" className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 transition">CTET Practice</a>
                     <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/5 transition border-t border-foreground/10">

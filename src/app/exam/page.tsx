@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useRequireAuth } from '@/lib/useRequireAuth'
+import { resolveSkin } from '@/lib/examSkins'
+import NTAExamInterface from '@/components/exam/NTAExamInterface'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
 
@@ -29,6 +31,7 @@ function ExamContent() {
   const examType = searchParams.get('exam_type')
   const subject = searchParams.get('subject')
   const limit = searchParams.get('limit') || '10'
+  const testParam = searchParams.get('test') // re-open a saved library test
 
   const [questions, setQuestions] = useState<any[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -41,8 +44,40 @@ function ExamContent() {
   const [language, setLanguage] = useState<'en' | 'hi'>('en')
   const [isSubmitted, setIsSubmitted] = useState(false)
 
+  // Which interface skin to use (set by the upload flow). Read on the client
+  // to avoid hydration mismatch.
+  const [skinId, setSkinId] = useState<string | null>(null)
+  const [skinChecked, setSkinChecked] = useState(false)
+  useEffect(() => {
+    async function init() {
+      // Re-opening a saved test: fetch its questions from the DB (no re-extraction,
+      // no tokens spent) and prime localStorage before the interface mounts.
+      if (testParam) {
+        try {
+          const res = await fetch(`/api/tests?id=${testParam}`)
+          const data = await res.json()
+          if (data.test) {
+            localStorage.setItem('questions', JSON.stringify(data.test.questions))
+            localStorage.setItem('exam_skin', data.test.exam_skin || 'GENERIC')
+            localStorage.setItem('current_test_id', data.test.id)
+            localStorage.setItem('current_test_name', data.test.name || 'Saved Test')
+            setSkinId(data.test.exam_skin || 'GENERIC')
+            setQuestions(data.test.questions || [])
+          }
+        } catch (e) { console.error('Failed to load saved test', e) }
+        setSkinChecked(true)
+        setLoading(false)
+        return
+      }
+      setSkinId(localStorage.getItem('exam_skin'))
+      setSkinChecked(true)
+    }
+    init()
+  }, [testParam])
+
   useEffect(() => {
     async function loadExamData() {
+      if (testParam) return // handled by init() above
       if (examType && subject) {
         try {
           const res = await fetch(`/api/exams/generate?exam_type=${examType}&subject=${encodeURIComponent(subject)}&limit=${limit}`);
@@ -123,6 +158,13 @@ function ExamContent() {
       <div className="text-white/40 text-sm font-mono animate-pulse">Checking access...</div>
     </div>
   )
+
+  // Upload-driven exam-specific interface (JEE Main / NEET → faithful NTA screen).
+  // The DB-driven flow (uptet/ctet, identified by ?exam_type=) keeps the default UI.
+  if (skinChecked && !examType) {
+    const skin = resolveSkin(skinId)
+    if (skin.family === 'NTA') return <NTAExamInterface skin={skin} />
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-black flex items-center justify-center">

@@ -45,6 +45,7 @@ Each question must follow this exact format:
     "D": "Hindi option D text"
   },
   "correct": "A",
+  "question_type": "mcq",
   "explanation": "Generate a clear, step-by-step solution or explanation for this question in English. Do not leave this blank.",
   "diagramBox": [ymin, xmin, ymax, xmax],
   "fullImageMode": false,
@@ -52,6 +53,11 @@ Each question must follow this exact format:
   "topic": "specific topic within the subject",
   "difficulty": "easy / medium / hard"
 }
+
+Question type rules:
+- "question_type" is "mcq" for normal multiple-choice questions (with A/B/C/D options) — set "correct" to A/B/C/D.
+- "question_type" is "numerical" for integer/decimal answer questions (e.g. JEE/NEET numerical-value type) that have NO options and require a number as the answer. For these: put the numeric answer in "correct" (e.g. "4", "9.8", "-2"), and leave options_en and options_hi as empty objects {}.
+- If unsure, default to "mcq".
 
 General Rules:
 - Write ALL math expressions in LaTeX format wrapped in $ for inline and $$ for block
@@ -198,6 +204,9 @@ export async function POST(req: NextRequest) {
           }
 
           return {
+            // Legacy NOT-NULL columns — fall back to whichever language is present
+            text: q.text_en || q.text_hi || '',
+            options: q.options_en || q.options_hi || q.options || {},
             text_en: q.text_en || '',
             text_hi: q.text_hi || '',
             options_en: q.options_en || {},
@@ -210,6 +219,7 @@ export async function POST(req: NextRequest) {
             topic: q.topic || null,
             difficulty: q.difficulty || 'medium',
             source: source,
+            from_upload: 'yes', // came through the user-facing /upload → /api/extract pipeline
             has_latex: ((q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
             has_diagram: !!publicUrl,
             diagram_url: publicUrl
