@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'CTET Free Mock Test 2024 | Practice Papers Online — Prepify',
-  description: 'Practice CTET 2024 with free mock tests, previous year papers (PYQ), and subject-wise questions. Paper I & Paper II with detailed solutions. Start now on Prepify.',
+  title: 'CTET Free Mock Test 2026 | Practice Papers Online — Prepify',
+  description: 'Practice CTET 2026 with free mock tests, previous year papers (PYQ), and subject-wise questions. Paper I & Paper II with detailed solutions. Start now on Prepify.',
   keywords: [
     'CTET mock test',
-    'CTET free mock test 2024',
+    'CTET free mock test 2026',
     'CTET practice test online',
     'CTET previous year papers',
     'CTET paper 1 mock test',
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     'Central Teacher Eligibility Test',
   ],
   openGraph: {
-    title: 'CTET Free Mock Test 2024 | Prepify',
+    title: 'CTET Free Mock Test 2026 | Prepify',
     description: 'Free CTET mock tests with real NTA-like interface. Paper I & II, subject-wise practice, PYQs with solutions.',
     url: 'https://curioverse.in/ctet',
     siteName: 'Prepify',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CTET Free Mock Test 2024 | Prepify',
+    title: 'CTET Free Mock Test 2026 | Prepify',
     description: 'Free CTET mock tests with real NTA-like interface. Paper I & II, subject-wise practice, PYQs with solutions.',
   },
   alternates: {
