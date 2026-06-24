@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { useRequireAuth } from '@/lib/useRequireAuth'
 import { InlineMath, BlockMath } from 'react-katex'
+import AdBanner from '@/components/ads/AdUnit'
 
 function renderText(text: string) {
   if (!text) return null
@@ -450,6 +451,9 @@ export default function ResultsPage() {
             </ul>
           </div>
         )}
+
+        {/* Ad slot */}
+        <AdBanner />
 
         {/* Question review */}
         <div>
