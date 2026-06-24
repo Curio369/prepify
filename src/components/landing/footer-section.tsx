@@ -16,6 +16,11 @@ const footerLinks = {
     { name: "LinkedIn", href: "https://www.linkedin.com/in/kartikey-gupta-93053427b/" },
     { name: "Twitter", href: "https://twitter.com/CurioRockerz" },
   ],
+  Company: [
+    { name: "About Us", href: "/about" },
+    { name: "Contact Us", href: "/contact" },
+    { name: "Disclaimer", href: "/disclaimer" },
+  ],
   Legal: [
     { name: "Privacy Policy", href: "/privacy" },
     { name: "Terms of Service", href: "/terms" },
@@ -108,7 +113,7 @@ export function FooterSection() {
         <div className="py-16 lg:py-20">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-12 lg:gap-8">
             {/* Brand Column */}
-            <div className="col-span-2 md:col-span-3">
+            <div className="col-span-2 md:col-span-2">
               <a href="#" className="inline-flex items-center gap-2 mb-6">
                 <span className="text-2xl font-display text-white">PREPIFY</span>
                 <span className="text-xs text-white/40 font-mono">TM</span>

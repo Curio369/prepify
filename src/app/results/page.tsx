@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
-import AdBanner from '@/components/ads/AdUnit'
 import { useRequireAuth } from '@/lib/useRequireAuth'
 import { InlineMath, BlockMath } from 'react-katex'
 
@@ -435,8 +434,6 @@ export default function ResultsPage() {
             </div>
           )}
         </div>
-
-        <AdBanner />
 
         {weakSubjects.length > 0 && (
           <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-5">
