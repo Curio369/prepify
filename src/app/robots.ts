@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/exam', '/results', '/upload'],
+      disallow: ['/api/', '/exam', '/results', '/upload', '/admin', '/library', '/tracker'],
     },
     sitemap: 'https://curioverse.in/sitemap.xml',
   }
