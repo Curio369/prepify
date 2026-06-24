@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/useRequireAuth'
 import { EXAM_TYPE_TO_SKIN } from '@/lib/examSkins'
@@ -10,11 +10,22 @@ export default function UploadPage() {
   const authed = useRequireAuth()
   const [file, setFile] = useState<File | null>(null)
   const [examType, setExamType] = useState<string>('JEE Main')
+  const [showInstructions, setShowInstructions] = useState(true) // NTA instructions page
   const [loading, setLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  // Reflect the saved "skip instructions" preference
+  useEffect(() => {
+    setShowInstructions(localStorage.getItem('nta_skip_instructions') !== 'yes')
+  }, [])
+  function toggleInstructions(next: boolean) {
+    setShowInstructions(next)
+    localStorage.setItem('nta_skip_instructions', next ? 'no' : 'yes')
+  }
+  const isNta = examType === 'JEE Main' || examType === 'NEET'
 
   async function handleUpload() {
     if (!file) return
@@ -105,10 +116,22 @@ export default function UploadPage() {
               </button>
             ))}
           </div>
-          {(examType === 'JEE Main' || examType === 'NEET') && (
-            <p className="text-center text-white/25 text-xs mt-2.5">
-              Opens in the real {examType} (NTA) exam interface
-            </p>
+          {isNta && (
+            <>
+              <p className="text-center text-white/25 text-xs mt-2.5">
+                Opens in the real {examType} (NTA) exam interface
+              </p>
+              <button
+                type="button"
+                onClick={() => toggleInstructions(!showInstructions)}
+                className="mt-3 mx-auto flex items-center gap-2.5 text-xs text-white/50 hover:text-white/80 transition"
+              >
+                <span className={`relative w-9 h-5 rounded-full transition-colors ${showInstructions ? 'bg-emerald-500' : 'bg-white/15'}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showInstructions ? 'translate-x-4' : ''}`} />
+                </span>
+                Show exam instructions page before test
+              </button>
+            </>
           )}
         </div>
 
