@@ -88,7 +88,8 @@ export default function ExamEngine({
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [current, setCurrent] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [language, setLanguage] = useState<'en' | 'hi'>('en')
+  const [language, setLanguage] = useState<'en' | 'hi'>('hi')
+  const [showLangHint, setShowLangHint] = useState(true)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timerMinutes ? timerMinutes * 60 : null)
   const [revealedQuestions, setRevealedQuestions] = useState<Set<number>>(new Set())
@@ -131,6 +132,13 @@ export default function ExamEngine({
     }
     fetchQuestions()
   }, [examType, subject, subjects, limit, year, ordered])
+
+  // One-time hint pointing at the language toggle; auto-dismisses.
+  useEffect(() => {
+    if (!showLangHint) return
+    const t = setTimeout(() => setShowLangHint(false), 6000)
+    return () => clearTimeout(t)
+  }, [showLangHint])
 
   const handleFinish = useCallback(() => {
     setIsSubmitted(true)
@@ -195,6 +203,16 @@ export default function ExamEngine({
 
   return (
     <div className="min-h-screen w-full max-w-full bg-[#060b10] text-white flex flex-col overflow-x-hidden" style={{ fontFamily: 'var(--font-space), var(--font-geist-sans), sans-serif' }}>
+      <style jsx>{`
+        .lang-hint {
+          animation: hintIn 240ms cubic-bezier(0.23, 1, 0.32, 1) both,
+                     hintBob 2.4s ease-in-out 240ms infinite;
+          transform-origin: top right;
+        }
+        @keyframes hintIn { from { opacity: 0; transform: translateY(-4px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes hintBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+        @media (prefers-reduced-motion: reduce) { .lang-hint { animation: hintIn 200ms ease both; } }
+      `}</style>
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-30 bg-[#060b10]/98 border-b border-white/6 px-4 md:px-8 py-3 flex items-center gap-3">
@@ -231,12 +249,29 @@ export default function ExamEngine({
             </span>
           )}
           {hasHindi && (
-            <button
-              onClick={() => setLanguage(l => l === 'en' ? 'hi' : 'en')}
-              className="text-white/45 hover:text-white/80 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/18 transition"
-            >
-              {language === 'en' ? 'हिंदी' : 'English'}
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => { setLanguage(l => l === 'en' ? 'hi' : 'en'); setShowLangHint(false) }}
+                className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition ${
+                  showLangHint
+                    ? 'text-emerald-300 border-emerald-400/50 ring-1 ring-emerald-400/40'
+                    : 'text-white/45 hover:text-white/80 border-white/8 hover:border-white/18'
+                }`}
+              >
+                {language === 'en' ? 'हिंदी' : 'English'}
+              </button>
+              {showLangHint && (
+                <div
+                  className="lang-hint absolute top-full right-0 mt-2 z-40"
+                  onClick={() => setShowLangHint(false)}
+                >
+                  <div className="relative bg-emerald-500 text-[#04140c] text-[11px] font-semibold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                    <span className="absolute -top-1 right-4 w-2 h-2 rotate-45 bg-emerald-500" />
+                    भाषा यहाँ बदलें · Change language here
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           {!isSubmitted && (
             <button
