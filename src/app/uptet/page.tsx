@@ -72,10 +72,12 @@ export default function UptetLandingPage() {
   const [selectedSubject, setSelectedSubject] = useState('Child Development and Pedagogy')
   const [questionCount, setQuestionCount]     = useState(10)
 
-  // Full Mock
+  // Full Mock — no pre-selected choices; the user must pick Language II (and the
+  // Paper II optional) explicitly before starting.
   const [paper, setPaper]         = useState<'I' | 'II'>('I')
-  const [langII, setLangII]       = useState('Language II English')
-  const [p2Optional, setP2Optional] = useState('ms')
+  const [langII, setLangII]       = useState<string | null>(null)
+  const [p2Optional, setP2Optional] = useState<string | null>(null)
+  const [fullError, setFullError] = useState<string | null>(null)
 
   // PYQ
   const [selectedPyq, setSelectedPyq] = useState(PYQ_PAPERS[0].id)
@@ -107,7 +109,10 @@ export default function UptetLandingPage() {
     if (mode === 'subject') {
       router.push(`/uptet/exam?subject=${encodeURIComponent(selectedSubject)}&limit=${questionCount}&mode=${practiceMode}`)
     } else if (mode === 'full') {
-      const subjects = buildSubjects(paper, langII, p2Optional)
+      if (!langII) { setLoading(false); setFullError('Please select your Language II before starting.'); return }
+      if (paper === 'II' && !p2Optional) { setLoading(false); setFullError('Please select your Optional Subject before starting.'); return }
+      setFullError(null)
+      const subjects = buildSubjects(paper, langII, p2Optional ?? undefined)
       // sort=subject groups questions by subject (fixes cross-year interleaving)
       router.push(`/uptet/exam?subjects=${encodeURIComponent(subjects)}&subject=Full+Mock+Paper+${paper}&limit=150&timer=150&ordered=true&sort=subject`)
     } else {
@@ -391,7 +396,7 @@ export default function UptetLandingPage() {
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {LANG_II_OPTIONS.map(opt => (
-                      <button key={opt.value} onClick={() => setLangII(opt.value)}
+                      <button key={opt.value} onClick={() => { setLangII(opt.value); setFullError(null) }}
                         className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
                           langII === opt.value ? optActive : optInact
                         }`}
@@ -407,7 +412,7 @@ export default function UptetLandingPage() {
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       {P2_OPTIONAL.map(opt => (
-                        <button key={opt.value} onClick={() => setP2Optional(opt.value)}
+                        <button key={opt.value} onClick={() => { setP2Optional(opt.value); setFullError(null) }}
                           className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
                             p2Optional === opt.value ? optActive : optInact
                           }`}
@@ -499,10 +504,10 @@ export default function UptetLandingPage() {
             )}
 
             {/* Error */}
-            {pyqError && mode === 'pyq' && (
+            {((pyqError && mode === 'pyq') || (fullError && mode === 'full')) && (
               <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/8 border border-red-500/20 rounded-xl px-3 py-2.5">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {pyqError}
+                {mode === 'pyq' ? pyqError : fullError}
               </div>
             )}
 
