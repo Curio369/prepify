@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import AdBanner from '@/components/ads/AdUnit'
 import { useRouter } from 'next/navigation'
 import 'katex/dist/katex.min.css'
 import { InlineMath, BlockMath } from 'react-katex'
@@ -307,6 +308,9 @@ export default function ExamEngine({
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-10 lg:px-16 pt-6 pb-28 md:pb-12">
           <div className="w-full max-w-2xl">
+
+            {/* Ad slot */}
+            <div className="mb-7"><AdBanner /></div>
 
             {/* Section divider — shown only at first question of each section */}
             {(ordered || !!sortBy) && currentSection && current === currentSection.startIdx && (
