@@ -6,9 +6,9 @@ import { useEffect, useRef } from "react";
 const footerLinks = {
   Platform: [
     { name: "Features", href: "#features" },
-    { name: "Upload DPP", href: "#upload" },
+    { name: "Upload DPP", href: "/upload" },
+    { name: "Blog", href: "/blog" },
     { name: "Pricing Plans", href: "#pricing" },
-    { name: "NTA Interface", href: "#" },
   ],
   Connect: [
     { name: "Email Support", href: "mailto:curiozii369@gmail.com" },
