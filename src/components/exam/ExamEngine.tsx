@@ -94,6 +94,12 @@ export default function ExamEngine({
   const [timeLeft, setTimeLeft] = useState(timerMinutes ? timerMinutes * 60 : null)
   const [revealedQuestions, setRevealedQuestions] = useState<Set<number>>(new Set())
 
+  // Report-an-issue state
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportType, setReportType] = useState<string | null>(null)
+  const [reportNote, setReportNote] = useState('')
+  const [reportStatus, setReportStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
   useEffect(() => {
     async function fetchQuestions() {
       try {
@@ -167,6 +173,34 @@ export default function ExamEngine({
     let c = 0; questions.forEach((q, i) => { if (answers[i] === q.correct_answer) c++ }); return c
   }
 
+  // Reset the report dialog whenever the user moves to a different question
+  useEffect(() => {
+    setReportOpen(false); setReportType(null); setReportNote(''); setReportStatus('idle')
+  }, [current])
+
+  async function submitReport() {
+    if (!reportType) return
+    const q = questions[current]
+    setReportStatus('sending')
+    try {
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_id: q?.id,
+          exam_type: examType,
+          subject: q?.subject,
+          issue_type: reportType,
+          note: reportNote,
+          question_text: q?.text_en || q?.text_hi || q?.text || '',
+        }),
+      })
+      setReportStatus(res.ok ? 'sent' : 'error')
+    } catch {
+      setReportStatus('error')
+    }
+  }
+
   const handleSelectOption = (opt: string) => {
     if (isSubmitted) return
     if (mode === 'learning' && revealedQuestions.has(current)) return
@@ -211,7 +245,12 @@ export default function ExamEngine({
         }
         @keyframes hintIn { from { opacity: 0; transform: translateY(-4px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes hintBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
-        @media (prefers-reduced-motion: reduce) { .lang-hint { animation: hintIn 200ms ease both; } }
+        .report-modal { animation: modalIn 200ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.97) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @media (prefers-reduced-motion: reduce) {
+          .lang-hint { animation: hintIn 200ms ease both; }
+          .report-modal { animation: none; }
+        }
       `}</style>
 
       {/* ── Header ── */}
@@ -370,6 +409,14 @@ export default function ExamEngine({
             <div className="flex items-baseline gap-2 mb-4">
               <span className="text-[11px] font-mono text-white/30 uppercase tracking-widest">Q{current + 1}</span>
               {q.year && <span className="text-[11px] text-white/22 font-mono">{q.year}</span>}
+              <button
+                onClick={() => setReportOpen(true)}
+                className="ml-auto flex items-center gap-1 text-[11px] text-white/30 hover:text-amber-400 transition-colors"
+                title="Report a problem with this question"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Report
+              </button>
             </div>
 
             {/* Question text */}
@@ -553,6 +600,78 @@ export default function ExamEngine({
           )}
         </div>
       </div>
+
+      {/* ── Report issue modal ── */}
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center px-4"
+          onClick={e => { if (e.target === e.currentTarget) setReportOpen(false) }}
+        >
+          <div className="report-modal w-full max-w-sm rounded-2xl border border-white/10 bg-[#11161d] p-5">
+            {reportStatus === 'sent' ? (
+              <div className="text-center py-4">
+                <div className="text-3xl mb-2">✅</div>
+                <p className="text-white font-semibold mb-1">Thanks for reporting!</p>
+                <p className="text-white/50 text-sm mb-5">We&apos;ll review this question and fix it.</p>
+                <button onClick={() => setReportOpen(false)} className="w-full bg-white text-[#060b10] font-bold py-2.5 rounded-xl text-sm hover:bg-white/90 transition">Close</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-white font-semibold text-sm">Report a problem · Q{current + 1}</h3>
+                  <button onClick={() => setReportOpen(false)} className="text-white/40 hover:text-white/80 text-lg leading-none">×</button>
+                </div>
+                <p className="text-white/45 text-xs mb-4">What&apos;s wrong with this question?</p>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {([
+                    { value: 'diagram_missing', label: 'Diagram missing' },
+                    { value: 'wrong_answer',    label: 'Wrong answer'    },
+                    { value: 'unclear',         label: 'Unclear / typo'  },
+                    { value: 'options',         label: 'Options issue'   },
+                    { value: 'other',           label: 'Other'           },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setReportType(opt.value)}
+                      className={`py-2 px-2.5 rounded-lg border text-xs font-medium transition ${
+                        reportType === opt.value
+                          ? 'border-amber-400/60 bg-amber-400/10 text-amber-300'
+                          : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/80'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  value={reportNote}
+                  onChange={e => setReportNote(e.target.value)}
+                  placeholder="Add a detail (optional)…"
+                  maxLength={500}
+                  className="w-full h-16 resize-none bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/30 transition mb-2"
+                />
+
+                {reportStatus === 'error' && (
+                  <p className="text-red-400 text-xs mb-2">Couldn&apos;t send — please try again.</p>
+                )}
+
+                <div className="flex gap-2">
+                  <button onClick={() => setReportOpen(false)} className="flex-1 border border-white/12 text-white/60 font-medium py-2.5 rounded-xl text-sm hover:bg-white/5 transition">Cancel</button>
+                  <button
+                    onClick={submitReport}
+                    disabled={!reportType || reportStatus === 'sending'}
+                    className="flex-1 bg-amber-400 text-[#1a1200] font-bold py-2.5 rounded-xl text-sm hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    {reportStatus === 'sending' ? 'Sending…' : 'Submit report'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
