@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
     '/api/extract': [
       './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
       './node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+      // Bundled fonts so non-embedded-font PDFs render on Vercel (no system fonts).
+      './node_modules/pdfjs-dist/standard_fonts/*.ttf',
     ],
   },
 };
