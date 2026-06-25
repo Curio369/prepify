@@ -30,9 +30,9 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
-      { url: '/Logos/logo-icon_dark-Photoroom.png', type: 'image/png' },
+      { url: '/Logos/logo_p-removebg-preview.png', type: 'image/png' },
     ],
-    apple: '/Logos/logo-icon_dark-Photoroom.png',
+    apple: '/Logos/logo_p-removebg-preview.png',
   },
   openGraph: {
     title: 'Prepify — Free UPTET & CTET Mock Tests',
