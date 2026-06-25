@@ -13,7 +13,11 @@ export async function pdfToAllImageBuffers(pdfBuffer: Buffer): Promise<Buffer[]>
   const pngPages = await pdfToPng(pdfBuffer, {
     viewportScale: 2.0,
     disableFontFace: false,
-    useSystemFonts: false,
+    // Many DPP PDFs reference standard fonts (Helvetica/Arial/Times) WITHOUT
+    // embedding them. With useSystemFonts:false pdfjs can't substitute them and
+    // renders every glyph as a blank box, so the model extracts nothing. Using
+    // system fonts makes the text actually paint.
+    useSystemFonts: true,
   })
 
   // Explicitly map and cast to Buffer

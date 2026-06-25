@@ -127,6 +127,14 @@ export async function POST(req: NextRequest) {
       ? await pdfToAllImageBuffers(fileBuffer)
       : [fileBuffer]
 
+    // Diagnostics: page count + per-page rendered size. A near-empty PNG
+    // (e.g. < ~10KB) usually means the page rendered blank (unembedded fonts).
+    console.log(
+      `[extract] file=${file.name} type=${file.type} isPDF=${isPDF} ` +
+      `pdfBytes=${fileBuffer.length} pages=${imageBuffers.length} ` +
+      `pageSizes=[${imageBuffers.map(b => b.length).join(', ')}]`
+    )
+
     const allEnrichedQuestions: any[] = []
 
     for (const imgBuf of imageBuffers) {
@@ -147,6 +155,7 @@ export async function POST(req: NextRequest) {
       });
 
       const raw = response.text || "[]"
+      console.log(`[extract] gemini raw (first 500 chars): ${raw.slice(0, 500)}`)
 
       let questions = []
       try {
@@ -155,6 +164,7 @@ export async function POST(req: NextRequest) {
         console.warn('Skipping page: No valid JSON found')
         continue
       }
+      console.log(`[extract] page parsed ${Array.isArray(questions) ? questions.length : 'NON-ARRAY'} questions`)
 
       const enriched = await Promise.all(
         questions.map(async (q: any) => {
