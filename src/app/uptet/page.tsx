@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import AdBanner from '@/components/ads/AdUnit';
@@ -85,6 +85,22 @@ export default function UptetLandingPage() {
   const [pyqStream, setPyqStream]     = useState<'ms' | 'Social Studies' | null>(null)
   const [pyqError, setPyqError]       = useState<string | null>(null)
 
+  // Animated hint pointing at Language II selector
+  const [showHint, setShowHint] = useState(false)
+  const fullLangRef = useRef<HTMLDivElement>(null)
+  const pyqLangRef  = useRef<HTMLDivElement>(null)
+  const hintTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function triggerHint() {
+    setShowHint(true)
+    const ref = mode === 'full' ? fullLangRef : pyqLangRef
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => setShowHint(false), 4000)
+  }
+
+  useEffect(() => () => { if (hintTimer.current) clearTimeout(hintTimer.current) }, [])
+
   // 'ms' sentinel expands to Mathematics + Science (stored separately in Supabase)
   function buildSubjects(p: 'I' | 'II', lang: string, optional?: string): string {
     if (p === 'I') {
@@ -101,7 +117,7 @@ export default function UptetLandingPage() {
   function handleStart() {
     if (mode === 'pyq') {
       const pyq = PYQ_PAPERS.find(p => p.id === selectedPyq)!
-      if (!pyqLangII) { setPyqError('Please select your Language II before starting.'); return }
+      if (!pyqLangII) { triggerHint(); setPyqError('Please select your Language II before starting.'); return }
       if (pyq.paper === 'II' && !pyqStream) { setPyqError('Please select your Optional Subject before starting.'); return }
       setPyqError(null)
     }
@@ -109,7 +125,7 @@ export default function UptetLandingPage() {
     if (mode === 'subject') {
       router.push(`/uptet/exam?subject=${encodeURIComponent(selectedSubject)}&limit=${questionCount}&mode=${practiceMode}`)
     } else if (mode === 'full') {
-      if (!langII) { setLoading(false); setFullError('Please select your Language II before starting.'); return }
+      if (!langII) { setLoading(false); triggerHint(); setFullError('Please select your Language II before starting.'); return }
       if (paper === 'II' && !p2Optional) { setLoading(false); setFullError('Please select your Optional Subject before starting.'); return }
       setFullError(null)
       const subjects = buildSubjects(paper, langII, p2Optional ?? undefined)
@@ -390,19 +406,33 @@ export default function UptetLandingPage() {
                   ))}
                 </div>
 
-                <div>
+                <div ref={fullLangRef} className="relative">
                   <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
                     Section III · Language II
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {LANG_II_OPTIONS.map(opt => (
-                      <button key={opt.value} onClick={() => { setLangII(opt.value); setFullError(null) }}
+                      <button key={opt.value} onClick={() => { setLangII(opt.value); setFullError(null); setShowHint(false) }}
                         className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
                           langII === opt.value ? optActive : optInact
                         }`}
                       >{opt.label}</button>
                     ))}
                   </div>
+                  {showHint && mode === 'full' && (
+                    <div className="absolute -top-8 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ animation: 'hintBob 0.6s ease-in-out infinite alternate' }}>
+                      <div className={`text-[11px] font-semibold px-3 py-1 rounded-full shadow-lg ${dark ? 'bg-amber-400 text-black' : 'bg-amber-500 text-white'}`}>
+                        ↓ Choose your Language II
+                      </div>
+                    </div>
+                  )}
+                  {showHint && mode === 'full' && (
+                    <div className={`absolute inset-0 rounded-xl pointer-events-none`} style={{ boxShadow: '0 0 0 2px #f59e0b, 0 0 14px 2px #f59e0b55', animation: 'hintGlow 0.8s ease-in-out infinite alternate' }} />
+                  )}
+                  <style jsx>{`
+                    @keyframes hintBob { from { transform: translateY(0) } to { transform: translateY(-4px) } }
+                    @keyframes hintGlow { from { opacity: 0.5 } to { opacity: 1 } }
+                  `}</style>
                 </div>
 
                 {paper === 'II' && (
@@ -463,19 +493,29 @@ export default function UptetLandingPage() {
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  <div>
+                  <div ref={pyqLangRef} className="relative">
                     <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
                       Language II <span className="normal-case font-normal">(Section III)</span>
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {LANG_II_OPTIONS.map(opt => (
-                        <button key={opt.value} onClick={() => { setPyqLangII(opt.value); setPyqError(null) }}
+                        <button key={opt.value} onClick={() => { setPyqLangII(opt.value); setPyqError(null); setShowHint(false) }}
                           className={`py-2.5 rounded-xl border text-xs font-semibold transition ${
                             pyqLangII === opt.value ? optActive : optInact
                           }`}
                         >{opt.label}</button>
                       ))}
                     </div>
+                    {showHint && mode === 'pyq' && (
+                      <div className="absolute -top-8 left-0 right-0 flex flex-col items-center pointer-events-none" style={{ animation: 'hintBob 0.6s ease-in-out infinite alternate' }}>
+                        <div className={`text-[11px] font-semibold px-3 py-1 rounded-full shadow-lg ${dark ? 'bg-amber-400 text-black' : 'bg-amber-500 text-white'}`}>
+                          ↓ Choose your Language II
+                        </div>
+                      </div>
+                    )}
+                    {showHint && mode === 'pyq' && (
+                      <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ boxShadow: '0 0 0 2px #f59e0b, 0 0 14px 2px #f59e0b55', animation: 'hintGlow 0.8s ease-in-out infinite alternate' }} />
+                    )}
                   </div>
 
                   {PYQ_PAPERS.find(p => p.id === selectedPyq)?.paper === 'II' && (

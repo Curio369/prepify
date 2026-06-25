@@ -274,8 +274,8 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
             })}
           </div>
 
-          {/* Explanation: DB first (auto-translated), AI fallback */}
-          {q.explanation ? (
+          {/* Show DB explanation only if it's in Hindi (Devanagari); otherwise use AI */}
+          {q.explanation && /[ऀ-ॿ]/.test(q.explanation) ? (
             <DBExplanation text={q.explanation} language={language} />
           ) : (
             <AIExplainButton question={q} userAnswer={userAns} language={language} />

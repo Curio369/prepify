@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { getServerUser, createSupabaseServerClient } from '@/lib/supabase-server'
 
-const DAILY_LIMIT = 20
+const DAILY_LIMIT = 90
 
 // us-central1, gemini-2.5-flash — cheaper, separate from extraction quota
 const ai = new GoogleGenAI({
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const user = await getServerUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Rate limit: 20 AI explains per user per day
+  // Rate limit: 90 AI explains per user per day
   const supabase = await createSupabaseServerClient()
   const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
 
