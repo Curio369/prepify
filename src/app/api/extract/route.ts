@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
+import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 import { getServerUser } from '@/lib/supabase-server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
@@ -84,10 +85,16 @@ BIOLOGY:
 - Any labeled diagram (cell, organ, anatomical figure) must use "diagramBox"
 
 Diagram box rules (applies to all subjects):
-- Return ONLY the bounding box of the actual diagram/figure itself, NOT the surrounding text. Coordinates normalized to 1000 as [ymin, xmin, ymax, xmax]
-- The diagramBox must contain ONLY the figure/diagram. Do NOT include question text or answer options inside the box. Include all labels and arrows that are part of the figure.
-- The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure.
-- The diagramBox must fully contain the entire figure.
+- Coordinates are normalized to 1000 as [ymin, xmin, ymax, xmax].
+- The box must be PIXEL-TIGHT around the visual figure only — no whitespace, no question text, no option text inside the box.
+- ymin: the y-coordinate of the topmost pixel of the drawn figure (not the question text above it).
+- ymax: the y-coordinate of the bottommost pixel of the figure (not the options below it).
+- xmin: leftmost pixel of the figure.
+- xmax: rightmost pixel of the figure.
+- Include axis labels, arrows, and callouts that are visually attached to the figure.
+- Do NOT include the question stem text, option labels (A/B/C/D), or any text that is not physically drawn as part of the figure.
+- If no diagram/figure exists on that question, omit "diagramBox" entirely — do not guess.
+- Think step by step: first locate the exact pixel rows where the figure starts and ends, then set ymin/ymax. Then locate the exact pixel columns, set xmin/xmax.
 
 Full-image fallback mode (use ONLY when options cannot be cleanly separated as text):
 - Set "fullImageMode": true
@@ -96,10 +103,10 @@ Full-image fallback mode (use ONLY when options cannot be cleanly separated as t
 - "correct" still uses A/B/C/D mapped by POSITION
 
 Cross-question box accuracy (CRITICAL):
-- Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure
-- A diagramBox must NEVER cross, touch, or include any part of a neighboring question
-- If the page has two columns, do NOT let a diagramBox span both columns
-- CRITICAL: If the page consists primarily of solutions, answer keys, or does not contain explicit numbered test questions, return exactly []
+- Before finalizing each diagramBox, verify which question NUMBER on the page is directly above the figure.
+- A diagramBox must NEVER overlap any pixel belonging to a neighboring question's text or figure.
+- If the page has two columns, the diagramBox must stay within its column — never span both.
+- If the page consists primarily of solutions, answer keys, or has no explicit numbered test questions, return exactly []
 `
 
 export async function POST(req: NextRequest) {
@@ -121,41 +128,50 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const isPDF = file.type === 'application/pdf'
-    const base64 = fileBuffer.toString('base64')
-    const mimeType = isPDF ? 'application/pdf' : (file.type || 'image/jpeg')
 
-    // PDFs are sent directly to Gemini (supports multi-page PDFs natively).
-    // Images are sent as-is. No server-side PDF→image conversion needed.
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { data: base64, mimeType } },
-          { text: prompt }
-        ]
-      }],
-      config: { responseMimeType: 'application/json' },
-    })
+    // PDFs are converted to per-page images first for best extraction accuracy.
+    const imageBuffers = isPDF
+      ? await pdfToAllImageBuffers(fileBuffer)
+      : [fileBuffer]
 
-    const raw = response.text || '[]'
-    let questions: any[] = []
-    try {
-      questions = JSON.parse(raw)
-    } catch {
-      console.warn('No valid JSON from Gemini')
-    }
+    const allEnrichedQuestions: any[] = []
 
-    // Crop diagram regions from the original image buffer (images only; skip for PDFs)
-    const allEnrichedQuestions = await Promise.all(
-      questions.map(async (q: any) => {
-        if (!isPDF && q.diagramBox && Array.isArray(q.diagramBox)) {
-          const diagramBase64 = await cropDiagram(fileBuffer, q.diagramBox)
-          return { ...q, diagramBase64 }
-        }
-        return q
+    for (const imgBuf of imageBuffers) {
+      const base64 = imgBuf.toString('base64')
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [
+            { inlineData: { data: base64, mimeType: 'image/png' } },
+            { text: prompt }
+          ]
+        }],
+        config: { responseMimeType: 'application/json' },
       })
-    )
+
+      const raw = response.text || '[]'
+      let questions: any[] = []
+      try {
+        questions = JSON.parse(raw)
+      } catch {
+        console.warn('Skipping page: No valid JSON found')
+        continue
+      }
+
+      const enriched = await Promise.all(
+        questions.map(async (q: any) => {
+          if (q.diagramBox && Array.isArray(q.diagramBox)) {
+            const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
+            return { ...q, diagramBase64 }
+          }
+          return q
+        })
+      )
+
+      allEnrichedQuestions.push(...enriched)
+    }
 
     // Save to Supabase if requested
     if (saveToDb && allEnrichedQuestions.length > 0) {

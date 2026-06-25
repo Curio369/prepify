@@ -12,14 +12,13 @@ export async function cropDiagram(
     const width = metadata.width!
     const height = metadata.height!
 
-    // Add padding offset — nudge down to skip text above diagram
-    const padX = 0.12
-    const padY = 0.05
+    // Small fixed margin (8px) so the figure edge isn't clipped
+    const pad = 8
 
-    const left = Math.floor(((xmin / 1000) - padX) * width)
-    const top = Math.floor(((ymin / 1000) - padY) * height)
-    const cropWidth = Math.floor(((xmax - xmin) / 1000 + padX * 3) * width)
-    const cropHeight = Math.floor(((ymax - ymin) / 1000 + 0.08) * height)
+    const left = Math.floor((xmin / 1000) * width) - pad
+    const top = Math.floor((ymin / 1000) * height) - pad
+    const cropWidth = Math.floor(((xmax - xmin) / 1000) * width) + pad * 2
+    const cropHeight = Math.floor(((ymax - ymin) / 1000) * height) + pad * 2
 
     // Clamp to image boundaries
     const safeLeft = Math.max(0, left)
