@@ -69,7 +69,7 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
   // ── Load questions + instruction preference ──
   useEffect(() => {
     let qs: any[] = []
-    try { const raw = localStorage.getItem('questions'); if (raw && raw !== 'undefined') qs = JSON.parse(raw) } catch {}
+    try { const raw = localStorage.getItem('questions'); if (raw && raw !== 'undefined') qs = JSON.parse(raw) } catch { }
     const normalized: NormQ[] = (qs || []).map(q => ({ raw: q, subject: canonicalSubject(q.subject), isNumerical: detectNumerical(q) }))
     const order = skin.subjectOrder.map(canonicalSubject)
     const rank = (s: string) => { const i = order.indexOf(s); return i === -1 ? order.length + 1 : i }
@@ -195,15 +195,15 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
     recordedRef.current = true
     const id = typeof window !== 'undefined' ? localStorage.getItem('current_test_id') : null
     const name = (typeof window !== 'undefined' && localStorage.getItem('current_test_name')) || `${skin.name} Test`
-    if (id) fetch('/api/tests', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result: { marks: result.marks, maxMarks: result.maxMarks, correct: result.correct, incorrect: result.incorrect, attempted: result.attempted, at: Date.now() } }) }).catch(() => {})
-    fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test_name: name, exam_type: skin.name, marks: result.marks, max_marks: result.maxMarks, positive_marks: result.correct * skin.marking.correct, negative_marks: result.incorrect * Math.abs(skin.marking.wrong), source: 'prepify' }) }).catch(() => {})
+    if (id) fetch('/api/tests', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, result: { marks: result.marks, maxMarks: result.maxMarks, correct: result.correct, incorrect: result.incorrect, attempted: result.attempted, at: Date.now() } }) }).catch(() => { })
+    fetch('/api/scores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test_name: name, exam_type: skin.name, marks: result.marks, max_marks: result.maxMarks, positive_marks: result.correct * skin.marking.correct, negative_marks: result.incorrect * Math.abs(skin.marking.wrong), source: 'prepify' }) }).catch(() => { })
   }, [isSubmitted, result, skin])
 
   if (!loaded) return <div className="min-h-screen bg-[#eef1f5] grid place-items-center"><div className="text-slate-500 text-sm animate-pulse">Loading…</div></div>
 
   if (showInstructions) return (
     <NtaInstructions skin={skin} onProceed={(dontShowAgain) => {
-      if (dontShowAgain) { try { localStorage.setItem('nta_skip_instructions', 'yes') } catch {} }
+      if (dontShowAgain) { try { localStorage.setItem('nta_skip_instructions', 'yes') } catch { } }
       setShowInstructions(false)
     }} />
   )
@@ -275,7 +275,7 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
               <span className="text-red-600 font-semibold">{negMark}</span>
               <button onClick={() => setReportOpen(true)} title="Report a problem with this question"
                 className="flex items-center gap-1 text-slate-400 hover:text-amber-600 transition">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 Report
               </button>
             </div>
@@ -319,7 +319,7 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
                   </div>
                   {!isSubmitted && (
                     <div className="grid grid-cols-3 gap-1.5">
-                      {['1','2','3','4','5','6','7','8','9','.','0','-'].map(k => (
+                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '-'].map(k => (
                         <button key={k} onClick={() => keypad(k)} className="h-10 rounded border border-slate-300 bg-white hover:bg-slate-100 font-mono text-base font-semibold text-slate-700 transition">{k}</button>
                       ))}
                       <button onClick={() => keypad('back')} className="h-10 rounded border border-slate-300 bg-white hover:bg-slate-100 text-sm font-semibold text-slate-600">⌫</button>
@@ -349,7 +349,8 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
                 <div className="ml-auto flex items-center gap-2">
                   <button onClick={goPrev} disabled={current === 0} className="text-xs font-bold px-3 py-2 rounded border border-slate-400 text-slate-600 hover:bg-slate-200 disabled:opacity-40 uppercase transition">&laquo; Back</button>
                   <button onClick={() => saveAndNext(false)} className="text-sm font-bold px-5 py-2 rounded bg-green-600 text-white hover:bg-green-700 uppercase transition">Save &amp; Next</button>
-                  <button onClick={() => setShowSubmitConfirm(true)} className="text-sm font-bold px-5 py-2 rounded bg-blue-700 text-white hover:bg-blue-800 uppercase transition">Submit</button>
+                  {/* Submit lives in the action row on desktop; on mobile the green Submit Test bar handles it */}
+                  <button onClick={() => setShowSubmitConfirm(true)} className="hidden md:inline-block text-sm font-bold px-5 py-2 rounded bg-blue-700 text-white hover:bg-blue-800 uppercase transition">Submit</button>
                 </div>
               </>
             ) : (

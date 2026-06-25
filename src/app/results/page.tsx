@@ -222,15 +222,9 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
   const hiText = q.text_hi
   const enOpts = q.options_en || q.options
   const hiOpts = q.options_hi
-  // Primary/secondary based on selected language
+  // Single-language display based on the selected language (defaults to Hindi)
   const primaryText = language === 'hi' ? (hiText || enText) : (enText || hiText)
-  const secondaryText = language === 'hi'
-    ? (hiText && enText && hiText !== enText ? enText : undefined)
-    : (hiText && hiText !== enText ? hiText : undefined)
   const primaryOpts = language === 'hi' ? (hiOpts || enOpts) : (enOpts || hiOpts)
-  const secondaryOpts = language === 'hi'
-    ? (hiOpts ? enOpts : undefined)
-    : (hiOpts || undefined)
 
   return (
     <div className={`border rounded-2xl overflow-hidden ${isCorrect ? 'border-emerald-500/30' : isSkipped ? 'border-slate-700' : 'border-red-500/30'}`}>
@@ -241,10 +235,7 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
         </span>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] font-mono text-slate-600 mb-1">Q{i + 1} · {q.subject || 'General'}</div>
-          <div className="text-sm text-slate-300 line-clamp-2">{renderText(enText || hiText || '')}</div>
-          {hiText && hiText !== enText && (
-            <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{renderText(hiText)}</div>
-          )}
+          <div className="text-sm text-slate-300 line-clamp-2">{renderText(primaryText || '')}</div>
         </div>
         <span className="text-slate-600 text-xs shrink-0 mt-1">{expanded ? '▲' : '▼'}</span>
       </button>
@@ -257,19 +248,15 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
             <div className="bg-slate-800/50 rounded-xl px-4 py-3.5">
               <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">Question {i + 1}</div>
               <div className="text-sm md:text-base text-slate-100 leading-relaxed font-medium">{renderText(primaryText)}</div>
-              {secondaryText && (
-                <div className="text-xs text-slate-500 leading-relaxed mt-2 pt-2 border-t border-slate-700/50">{renderText(secondaryText)}</div>
-              )}
             </div>
           )}
 
           {/* Options */}
           <div className="space-y-2">
-            {Object.keys(primaryOpts || secondaryOpts || {}).map(key => {
+            {Object.keys(primaryOpts || {}).map(key => {
               const isOpt = key === q.correct_answer
               const isUser = key === userAns
               const primaryVal = primaryOpts?.[key]
-              const secondaryVal = secondaryOpts?.[key]
               return (
                 <div key={key} className={`flex items-start gap-3 px-3 py-2.5 rounded-xl border ${isOpt ? 'border-emerald-500/40 bg-emerald-500/10' : isUser && !isOpt ? 'border-red-500/40 bg-red-500/10' : 'border-slate-800'}`}>
                   <span className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 ${isOpt ? 'border-emerald-500 bg-emerald-500 text-white' : isUser ? 'border-red-500 bg-red-500 text-white' : 'border-slate-700 text-slate-500'}`}>
@@ -277,7 +264,6 @@ function QuestionCard({ q, i, userAns, language }: { q: Question; i: number; use
                   </span>
                   <div className="flex-1 min-w-0 space-y-0.5">
                     {primaryVal && <div className={`text-sm leading-snug ${isOpt ? 'text-emerald-300' : isUser && !isOpt ? 'text-red-400' : 'text-slate-400'}`}>{renderText(primaryVal)}</div>}
-                    {secondaryVal && secondaryVal !== primaryVal && <div className={`text-xs leading-snug ${isOpt ? 'text-emerald-500/80' : isUser && !isOpt ? 'text-red-500/70' : 'text-slate-600'}`}>{renderText(secondaryVal)}</div>}
                   </div>
                   <div className="shrink-0 space-y-0.5 text-right">
                     {isOpt && <div className="text-[10px] text-emerald-500 font-bold">{language === 'hi' ? 'सही' : 'Correct'}</div>}
@@ -305,7 +291,7 @@ export default function ResultsPage() {
   const router = useRouter()
   const [result, setResult] = useState<Result | null>(null)
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct' | 'skipped'>('all')
-  const [language, setLanguage] = useState<'en' | 'hi'>('en')
+  const [language, setLanguage] = useState<'en' | 'hi'>('hi')
   const cheerRef = useRef<string>('')
 
   useEffect(() => {
@@ -314,7 +300,7 @@ export default function ResultsPage() {
     try {
       const parsed: Result = JSON.parse(raw)
       setResult(parsed)
-      const lang = parsed.language || 'en'
+      const lang = parsed.language || 'hi'
       setLanguage(lang)
       const pool = lang === 'hi' ? CHEER_HI : CHEER_EN
       cheerRef.current = pool[Math.floor(Math.random() * pool.length)]
