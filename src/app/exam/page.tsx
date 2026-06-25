@@ -183,6 +183,10 @@ function ExamContent() {
   const notAttempted = questions.length - attempted
 
   const questionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en || q.text)
+  // Image-first questions (match-the-column / passages / multi-figure) show their whole
+  // body as one big image; the explicit flag OR "empty text + a diagram" identifies them.
+  const examDiagram = q.diagram_url || q.diagramBase64
+  const imageFirst = !!(examDiagram && (q.fullImageMode || !(questionText || '').trim()))
   const activeOptions = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en || q.options)
 
   return (
@@ -232,16 +236,18 @@ function ExamContent() {
               )}
             </div>
 
-            <div className="text-white text-lg leading-relaxed mb-6">
-              {renderText(questionText)}
-            </div>
+            {!imageFirst && (questionText || '').trim() && (
+              <div className="text-white text-lg leading-relaxed mb-6">
+                {renderText(questionText)}
+              </div>
+            )}
 
-            {(q.diagram_url || q.diagramBase64) && (
+            {examDiagram && (
               <div className="mb-6 border border-white/10 rounded-xl overflow-hidden inline-block bg-white p-2">
                 <img
-                  src={q.diagram_url || q.diagramBase64}
-                  alt="Exam Diagram Vector"
-                  className="max-w-full max-h-72 object-contain"
+                  src={examDiagram}
+                  alt={imageFirst ? 'Question' : 'Exam Diagram Vector'}
+                  className={`max-w-full object-contain ${imageFirst ? 'max-h-[78vh]' : 'max-h-72'}`}
                 />
               </div>
             )}

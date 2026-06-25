@@ -227,6 +227,10 @@ export default function ExamEngine({
 
   const q = questions[current]
   const questionText = language === 'en' ? (q.text_en || q.text) : (q.text_hi || q.text_en || q.text)
+  // Image-first questions (match-the-column / passages / multi-figure): show the whole
+  // body as one big image and hide the text (flag, or "empty text + a diagram").
+  const engineDiagram = q.diagram_url || q.diagramBase64
+  const imageFirst = !!(engineDiagram && (q.fullImageMode || !(questionText || '').trim()))
   const optionsSet = language === 'en' ? (q.options_en || q.options) : (q.options_hi || q.options_en || q.options)
   const attempted = Object.keys(answers).length
   const hasHindi = !!(q.text_hi || q.options_hi)
@@ -420,14 +424,16 @@ export default function ExamEngine({
             </div>
 
             {/* Question text */}
-            <div className="text-[17px] md:text-lg font-medium leading-relaxed text-white/90 mb-6">
-              {renderText(questionText)}
-            </div>
+            {!imageFirst && (questionText || '').trim() && (
+              <div className="text-[17px] md:text-lg font-medium leading-relaxed text-white/90 mb-6">
+                {renderText(questionText)}
+              </div>
+            )}
 
-            {/* Diagram */}
-            {q.diagram_url && (
+            {/* Diagram (large when the image IS the question) */}
+            {engineDiagram && (
               <div className="rounded-xl overflow-hidden bg-white p-2 flex justify-center mb-6">
-                <img src={q.diagram_url} alt="Diagram" className="max-w-full max-h-64 object-contain" />
+                <img src={engineDiagram} alt={imageFirst ? 'Question' : 'Diagram'} className={`max-w-full object-contain ${imageFirst ? 'max-h-[78vh]' : 'max-h-64'}`} />
               </div>
             )}
 

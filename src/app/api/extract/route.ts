@@ -94,11 +94,21 @@ Diagram box rules (applies to all subjects):
 - The diagramBox ymin must start BELOW any question text, at the very top edge of the actual drawn figure.
 - The diagramBox must fully contain the entire figure.
 
-Full-image fallback mode (use ONLY when options cannot be cleanly separated as text):
+Full-question-image mode (IMPORTANT — use for questions whose meaning depends on 2D layout
+or multiple figures and therefore CANNOT be linearized into plain text):
+- Triggers: "match the column" / matrix-match (Column-I with figures vs Column-II), assertion-
+  reason with figures, comprehension passages that include diagrams, or any question that has
+  several small figures that belong together. If you find yourself cramming a table or many
+  figures into "text_en", STOP and use this mode instead.
 - Set "fullImageMode": true
-- "diagramBox" must cover the question stem AND all 4 options together, as ONE single box
-- Omit "options_en" and "options_hi" entirely
-- "correct" still uses A/B/C/D mapped by POSITION
+- "diagramBox" must cover the ENTIRE question BODY as ONE single box — the stem plus all columns
+  and all figures together. Do NOT include the multiple-choice answer options inside this box.
+- Leave "text_en" and "text_hi" as "" (empty) — the image carries the question, so do not try to
+  transcribe the columns/figures into text.
+- STILL fill "options_en" with the answer choices as short text, e.g.
+  {"A":"A-p, B-q, C-s, D-r","B":"A-q, B-p, C-r, D-s","C":"...","D":"..."}. These are short and
+  extract cleanly. (Leave "options_hi" as {} unless the choices are printed in Hindi.)
+- "correct" = the letter (A/B/C/D) of the correct answer choice.
 
 Cross-question box accuracy (CRITICAL):
 - Before finalizing each diagramBox, re-check which question NUMBER/LABEL on the page is closest above the figure
@@ -174,7 +184,7 @@ export async function POST(req: NextRequest) {
         return await Promise.all(
           questions.map(async (q: any) => {
             if (q.diagramBox && Array.isArray(q.diagramBox)) {
-              const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
+              const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox, !!q.fullImageMode)
               return { ...q, diagramBase64 }
             }
             return q

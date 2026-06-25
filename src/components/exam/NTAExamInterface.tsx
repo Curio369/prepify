@@ -220,6 +220,10 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
   const text = q.text_en || q.text || ''
   const opts = q.options_en || q.options || {}
   const diagram = q.diagram_url || q.diagramBase64
+  // "Image-first" questions (match-the-column / passages / multi-figure) carry their
+  // whole body as one image. Detect via the explicit flag OR the tell-tale shape of a
+  // saved row: empty text + a diagram. Render the image big and skip the (garbled) text.
+  const imageFirst = !!(diagram && (q.fullImageMode || !text.trim()))
   const lowTime = timeLeft !== null && timeLeft < 300
   const negMark = nq.isNumerical ? skin.marking.numericalWrong : skin.marking.wrong
 
@@ -283,10 +287,16 @@ export default function NTAExamInterface({ skin }: { skin: ExamSkin }) {
 
           <div className="flex-1 overflow-y-auto px-4 md:px-7 py-5">
             <div className="max-w-3xl">
-              <div className="text-[15px] md:text-base leading-relaxed text-slate-900 mb-5">{renderText(text)}</div>
+              {!imageFirst && text.trim() && (
+                <div className="text-[15px] md:text-base leading-relaxed text-slate-900 mb-5">{renderText(text)}</div>
+              )}
               {diagram && (
                 <div className="inline-block border border-slate-200 rounded bg-white p-1.5 mb-5">
-                  <img src={diagram} alt="Diagram" className="max-w-full max-h-72 object-contain" />
+                  <img
+                    src={diagram}
+                    alt={imageFirst ? 'Question' : 'Diagram'}
+                    className={`max-w-full object-contain ${imageFirst ? 'max-h-[78vh]' : 'max-h-72'}`}
+                  />
                 </div>
               )}
 
