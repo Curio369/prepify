@@ -149,12 +149,15 @@ export async function POST(req: NextRequest) {
         config: { responseMimeType: 'application/json' },
       })
 
-      const raw = response.text || '[]'
+      let raw = response.text || '[]'
+      if (raw.startsWith('```')) {
+        raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+      }
       let questions: any[] = []
       try {
         questions = JSON.parse(raw)
-      } catch {
-        console.warn('Skipping page: No valid JSON found')
+      } catch (err) {
+        console.warn('Skipping page: No valid JSON found', err)
         continue
       }
 
