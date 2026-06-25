@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
-import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 import { getServerUser } from '@/lib/supabase-server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
@@ -17,7 +16,7 @@ const ai = new GoogleGenAI({
     googleAuthOptions: {
       credentials: {
         client_email: process.env.GCP_CLIENT_EMAIL,
-        private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: process.env.GCP_PRIVATE_KEY?.replace(/^"|"$|\\r/g, '').replace(/\\n/g, '\n'),
       }
     }
   } : {})
@@ -128,43 +127,79 @@ export async function POST(req: NextRequest) {
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const isPDF = file.type === 'application/pdf'
 
-    const imageBuffers = isPDF
-      ? await pdfToAllImageBuffers(fileBuffer)
-      : [fileBuffer]
-
     const allEnrichedQuestions: any[] = []
 
-    for (const imgBuf of imageBuffers) {
-      const base64 = imgBuf.toString('base64')
-
+    if (isPDF) {
+      // General Method: Pass the raw PDF directly to Gemini for flawless text quality
+      const base64 = fileBuffer.toString('base64')
+      
       const response = await ai.models.generateContent({
         model: 'gemini-3.5-flash',
         contents: [{
           role: 'user',
           parts: [
-            { inlineData: { data: base64, mimeType: 'image/png' } },
+            { inlineData: { data: base64, mimeType: 'application/pdf' } },
             { text: prompt }
           ]
         }],
         config: {
-          responseMimeType: "application/json", // Forces pristine JSON output
+          responseMimeType: "application/json",
         }
       });
 
-      const raw = response.text || "[]"
+      let raw = response.text || "[]"
+      if (raw.startsWith('```')) {
+        raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+      }
 
       let questions = []
       try {
         questions = JSON.parse(raw)
       } catch (e) {
-        console.warn('Skipping page: No valid JSON found')
-        continue
+        console.warn('Skipping PDF: No valid JSON found', e)
+      }
+
+      // For raw PDFs, we do not crop diagrams as we don't have an image buffer to crop from.
+      const enriched = questions.map((q: any) => {
+        delete q.diagramBox
+        return q
+      })
+      
+      allEnrichedQuestions.push(...enriched)
+    } else {
+      // Process standard images
+      const base64 = fileBuffer.toString('base64')
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [
+            { inlineData: { data: base64, mimeType: file.type } },
+            { text: prompt }
+          ]
+        }],
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+
+      let raw = response.text || "[]"
+      if (raw.startsWith('```')) {
+        raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+      }
+
+      let questions = []
+      try {
+        questions = JSON.parse(raw)
+      } catch (e) {
+        console.warn('Skipping image: No valid JSON found', e)
       }
 
       const enriched = await Promise.all(
         questions.map(async (q: any) => {
           if (q.diagramBox && Array.isArray(q.diagramBox)) {
-            const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
+            const diagramBase64 = await cropDiagram(fileBuffer, q.diagramBox)
             return { ...q, diagramBase64 }
           }
           return q
@@ -210,11 +245,11 @@ export async function POST(req: NextRequest) {
 
           return {
             // Legacy NOT-NULL columns — fall back to whichever language is present
-            text: q.text_en || q.text_hi || '',
-            options: q.options_en || q.options_hi || q.options || {},
-            text_en: q.text_en || '',
+            text: q.text || q.text_en || q.text_hi || '',
+            options: q.options || q.options_en || q.options_hi || {},
+            text_en: q.text || q.text_en || '',
             text_hi: q.text_hi || '',
-            options_en: q.options_en || {},
+            options_en: q.options || q.options_en || {},
             options_hi: q.options_hi || {},
             correct_answer: q.correct || '',
             explanation: q.explanation || null,
@@ -225,7 +260,7 @@ export async function POST(req: NextRequest) {
             difficulty: q.difficulty || 'medium',
             source: source,
             from_upload: 'yes', // came through the user-facing /upload → /api/extract pipeline
-            has_latex: ((q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
+            has_latex: ((q.text || q.text_en || '').includes('$') || (q.text_hi || '').includes('$')),
             has_diagram: !!publicUrl,
             diagram_url: publicUrl
           };
