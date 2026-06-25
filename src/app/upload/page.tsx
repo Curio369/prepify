@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRequireAuth } from '@/lib/useRequireAuth'
 import { EXAM_TYPE_TO_SKIN } from '@/lib/examSkins'
 
-const EXAM_TYPES = ['JEE Main', 'NEET', 'CTET', 'UPTET', 'Other'] as const
+const EXAM_TYPES = ['JEE Main', 'NEET', 'Other'] as const
 const MAX_PDF = 4.4 * 1024 * 1024 // Vercel rejects request bodies over ~4.5MB
 
 // Downscale large images in the browser so each upload stays well under the
