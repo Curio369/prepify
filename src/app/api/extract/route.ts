@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { cropDiagram } from '@/lib/imageProcessor'
-import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 import { getServerUser } from '@/lib/supabase-server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
@@ -122,52 +121,41 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const isPDF = file.type === 'application/pdf'
+    const base64 = fileBuffer.toString('base64')
+    const mimeType = isPDF ? 'application/pdf' : (file.type || 'image/jpeg')
 
-    const imageBuffers = isPDF
-      ? await pdfToAllImageBuffers(fileBuffer)
-      : [fileBuffer]
+    // PDFs are sent directly to Gemini (supports multi-page PDFs natively).
+    // Images are sent as-is. No server-side PDF→image conversion needed.
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { data: base64, mimeType } },
+          { text: prompt }
+        ]
+      }],
+      config: { responseMimeType: 'application/json' },
+    })
 
-    const allEnrichedQuestions: any[] = []
-
-    for (const imgBuf of imageBuffers) {
-      const base64 = imgBuf.toString('base64')
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: [{
-          role: 'user',
-          parts: [
-            { inlineData: { data: base64, mimeType: 'image/png' } },
-            { text: prompt }
-          ]
-        }],
-        config: {
-          responseMimeType: "application/json", // Forces pristine JSON output
-        }
-      });
-
-      const raw = response.text || "[]"
-
-      let questions = []
-      try {
-        questions = JSON.parse(raw)
-      } catch (e) {
-        console.warn('Skipping page: No valid JSON found')
-        continue
-      }
-
-      const enriched = await Promise.all(
-        questions.map(async (q: any) => {
-          if (q.diagramBox && Array.isArray(q.diagramBox)) {
-            const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
-            return { ...q, diagramBase64 }
-          }
-          return q
-        })
-      )
-
-      allEnrichedQuestions.push(...enriched)
+    const raw = response.text || '[]'
+    let questions: any[] = []
+    try {
+      questions = JSON.parse(raw)
+    } catch {
+      console.warn('No valid JSON from Gemini')
     }
+
+    // Crop diagram regions from the original image buffer (images only; skip for PDFs)
+    const allEnrichedQuestions = await Promise.all(
+      questions.map(async (q: any) => {
+        if (!isPDF && q.diagramBox && Array.isArray(q.diagramBox)) {
+          const diagramBase64 = await cropDiagram(fileBuffer, q.diagramBox)
+          return { ...q, diagramBase64 }
+        }
+        return q
+      })
+    )
 
     // Save to Supabase if requested
     if (saveToDb && allEnrichedQuestions.length > 0) {
