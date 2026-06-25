@@ -5,6 +5,10 @@ import { pdfToAllImageBuffers } from '@/lib/pdfToImage'
 import { getServerUser } from '@/lib/supabase-server'
 import { supabaseAdmin as supabase } from '@/lib/supabase-admin'
 
+// Extraction is long-running (multi-page PDFs → many Gemini calls). Ask Vercel
+// for the longest function budget available so big PDFs don't get cut off.
+export const maxDuration = 300
+
 // Storage + question inserts run through the service-role client (bypasses RLS).
 // This route is already auth-guarded below, so only signed-in users reach it.
 
@@ -135,49 +139,70 @@ export async function POST(req: NextRequest) {
       `pageSizes=[${imageBuffers.map(b => b.length).join(', ')}]`
     )
 
-    const allEnrichedQuestions: any[] = []
-
-    for (const imgBuf of imageBuffers) {
+    // Send one page image to Gemini and return its enriched questions.
+    // Isolated + try/caught so one bad page can never sink the whole upload.
+    async function processPage(imgBuf: Buffer): Promise<any[]> {
       const base64 = imgBuf.toString('base64')
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: [{
-          role: 'user',
-          parts: [
-            { inlineData: { data: base64, mimeType: 'image/png' } },
-            { text: prompt }
-          ]
-        }],
-        config: {
-          responseMimeType: "application/json", // Forces pristine JSON output
-        }
-      });
-
-      const raw = response.text || "[]"
-      console.log(`[extract] gemini raw (first 500 chars): ${raw.slice(0, 500)}`)
-
-      let questions = []
       try {
-        questions = JSON.parse(raw)
-      } catch (e) {
-        console.warn('Skipping page: No valid JSON found')
-        continue
-      }
-      console.log(`[extract] page parsed ${Array.isArray(questions) ? questions.length : 'NON-ARRAY'} questions`)
-
-      const enriched = await Promise.all(
-        questions.map(async (q: any) => {
-          if (q.diagramBox && Array.isArray(q.diagramBox)) {
-            const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
-            return { ...q, diagramBase64 }
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: [{
+            role: 'user',
+            parts: [
+              { inlineData: { data: base64, mimeType: 'image/png' } },
+              { text: prompt }
+            ]
+          }],
+          config: {
+            responseMimeType: "application/json", // Forces pristine JSON output
           }
-          return q
-        })
-      )
+        });
 
-      allEnrichedQuestions.push(...enriched)
+        const raw = response.text || "[]"
+        console.log(`[extract] gemini raw (first 500 chars): ${raw.slice(0, 500)}`)
+
+        let questions = []
+        try {
+          questions = JSON.parse(raw)
+        } catch {
+          console.warn('Skipping page: No valid JSON found')
+          return []
+        }
+        if (!Array.isArray(questions)) return []
+        console.log(`[extract] page parsed ${questions.length} questions`)
+
+        return await Promise.all(
+          questions.map(async (q: any) => {
+            if (q.diagramBox && Array.isArray(q.diagramBox)) {
+              const diagramBase64 = await cropDiagram(imgBuf, q.diagramBox)
+              return { ...q, diagramBase64 }
+            }
+            return q
+          })
+        )
+      } catch (e) {
+        console.error('[extract] page failed:', e)
+        return []
+      }
     }
+
+    // Process pages with bounded concurrency. A serial loop times out on big
+    // PDFs (26 pages × ~10-40s each > Vercel's 300s limit); running a small pool
+    // in parallel keeps total time near the slowest few pages. Results are kept
+    // in page order so question sequence is preserved.
+    const PAGE_CONCURRENCY = 6
+    const pageResults: any[][] = new Array(imageBuffers.length)
+    let nextPage = 0
+    async function worker() {
+      while (nextPage < imageBuffers.length) {
+        const i = nextPage++
+        pageResults[i] = await processPage(imageBuffers[i])
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(PAGE_CONCURRENCY, imageBuffers.length) }, worker)
+    )
+    const allEnrichedQuestions: any[] = pageResults.flat()
 
     // Save to Supabase if requested
     if (saveToDb && allEnrichedQuestions.length > 0) {
