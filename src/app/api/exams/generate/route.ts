@@ -20,10 +20,42 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
 
     const ordered = searchParams.get('ordered') === 'true'
-    // sort=subject: groups all questions by subject name then by upload order
-    // Used for Full Mock exams (no year filter) to avoid cross-year interleaving
     const sortBySubject = searchParams.get('sort') === 'subject'
 
+    if (sortBySubject && subjects) {
+      // Full Mock mode: fetch each subject independently so a popular subject
+      // (CDP, Language I Hindi) can't crowd out subjects with fewer rows in the DB.
+      const subjectList = subjects.split(',').map(s => s.trim()).filter(Boolean)
+      const PER_SECTION = 30
+      const result: any[] = []
+
+      for (let i = 0; i < subjectList.length; i++) {
+        const subj = subjectList[i]
+        const isLast = i === subjectList.length - 1
+        const needed = isLast ? limit - PER_SECTION * (subjectList.length - 1) : PER_SECTION
+        const pool = needed * 4 // fetch 4× so shuffle has variety
+
+        const { data: rows, error: rowErr } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('exam_type', examType)
+          .eq('subject', subj)
+          .limit(pool)
+
+        if (rowErr) { console.error(`fetch error for subject ${subj}:`, rowErr); continue }
+        if (!rows || rows.length === 0) {
+          console.warn(`no questions found for subject: ${subj} exam_type: ${examType}`)
+          continue
+        }
+
+        const shuffled = shuffle(rows)
+        result.push(...shuffled.slice(0, needed))
+      }
+
+      return NextResponse.json({ questions: result })
+    }
+
+    // Single-subject / PYQ / topic practice path
     let query = supabase.from('questions').select('*').eq('exam_type', examType);
 
     if (subjects) {
@@ -35,45 +67,16 @@ export async function GET(req: NextRequest) {
 
     if (year) query = query.eq('year', year)
 
-    if (sortBySubject) {
-      // Fetch a large pool so we have enough to shuffle within each subject
-      query = query.order('subject', { ascending: true })
-    } else if (ordered) {
+    if (ordered) {
       // PYQ mode: strict upload order preserves original paper sequence
       query = query.order('created_at', { ascending: true })
     }
 
-    const fetchLimit = sortBySubject ? limit * 4 : limit;
-    const { data, error } = await query.limit(fetchLimit);
+    const { data, error } = await query.limit(ordered ? limit : limit * 4);
     if (error) throw error;
     if (!data || data.length === 0) return NextResponse.json({ questions: [] });
 
-    let selected: typeof data;
-
-    if (sortBySubject) {
-      // Group by subject, shuffle each group independently (mix years within each section)
-      const groups: Record<string, typeof data> = {}
-      for (const q of data) {
-        const key = q.subject || 'General'
-        if (!groups[key]) groups[key] = []
-        groups[key].push(q)
-      }
-      const subjectKeys = Object.keys(groups).sort()
-      const PER_SECTION = 30  // every UPTET/CTET section is 30Q except the Paper II optional (60Q)
-      const result: typeof data = []
-      for (let i = 0; i < subjectKeys.length; i++) {
-        const shuffled = shuffle(groups[subjectKeys[i]])
-        // Last subject gets whatever is left (handles Paper II Social Studies = 60Q)
-        const isLast = i === subjectKeys.length - 1
-        const count = isLast ? limit - PER_SECTION * (subjectKeys.length - 1) : PER_SECTION
-        result.push(...shuffled.slice(0, count))
-      }
-      selected = result
-    } else if (ordered) {
-      selected = data
-    } else {
-      selected = shuffle(data).slice(0, limit)
-    }
+    const selected = ordered ? data : shuffle(data).slice(0, limit)
 
     return NextResponse.json({ questions: selected });
   } catch (err: any) {
